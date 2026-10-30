@@ -9,6 +9,23 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.5.0',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'Timestamp camera: see the watermark live on the camera, with a ticking clock, location and GPS coordinates',
+        'Edit the watermark right in the camera, and save your own named templates (e.g. "Site check", "Clock in")',
+        'Favorites on Home: pin up to 7 tools you use most (tap Edit)',
+      ],
+      zh: ['时间水印相机：拍照前就能在画面上看到水印，时间实时跳动，并显示地点和经纬度', '可在相机里直接修改水印，并保存成自己命名的模板（例如"巡店""打卡"）', '首页「常用」：最多固定 7 个常用功能（点「编辑」）'],
+      ms: [
+        'Kamera cap masa: lihat tera air secara langsung pada kamera, dengan jam berdetik, lokasi dan koordinat GPS',
+        'Sunting tera air terus dalam kamera, dan simpan templat bernama anda sendiri (cth. "Semakan tapak", "Daftar masuk")',
+        'Kegemaran di Utama: sematkan sehingga 7 alatan yang paling kerap digunakan (tekan Sunting)',
+      ],
+    },
+  },
+  {
     version: '1.4.0',
     date: '2026-10-30',
     notes: {

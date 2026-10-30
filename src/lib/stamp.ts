@@ -11,13 +11,14 @@ export interface StampOptions {
   hour24: boolean
   showDate: boolean
   location: string
+  coords: string // GPS coordinates line, '' to hide
   note: string
   brand: string // the user's own watermark line, e.g. a company name
   logo: HTMLImageElement | null
   pos: StampPos
   size: number // 0.6 – 1.6
   locale: string // BCP 47, for the weekday name
-  labels: { onSite: string; clockIn: string; time: string; location: string; note: string }
+  labels: { onSite: string; clockIn: string; time: string; location: string; note: string; gps: string }
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Noto Sans", "Segoe UI", Roboto, sans-serif'
@@ -165,6 +166,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           textBlock(ctx, formatTime(o.when, o.hour24), `600 ${11 * u}px ${FONT}`, 11 * u, white),
           o.showDate ? textBlock(ctx, dateLine(o), `600 ${3.6 * u}px ${FONT}`, 3.6 * u, white) : null,
           o.location ? pinLine(ctx, o.location, 3.6 * u, white) : null,
+          o.coords ? textBlock(ctx, o.coords, `500 ${3 * u}px ${FONT}`, 3 * u, white) : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.2 * u}px ${FONT}`, 3.2 * u, white) : null,
           brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
@@ -175,6 +177,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
       const p = 1.8 * u
       const rows: [string, string][] = [[o.labels.time, `${o.showDate ? formatDate(o.when) + ' ' : ''}${formatTime(o.when, o.hour24, false)}`]]
       if (o.location) rows.push([o.labels.location, o.location])
+      if (o.coords) rows.push([o.labels.gps, o.coords])
       if (o.note) rows.push([o.labels.note, o.note])
       const lab = Math.max(...rows.map((r) => measure(ctx, `600 ${fs}px ${FONT}`, r[0] + ':')))
       const val = Math.max(...rows.map((r) => measure(ctx, `500 ${fs}px ${FONT}`, r[1])))
@@ -243,6 +246,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           card,
           o.showDate ? textBlock(ctx, dateLine(o), `600 ${3.4 * u}px ${FONT}`, 3.4 * u, '#fff') : null,
           o.location ? pinLine(ctx, o.location, 3.4 * u, '#fff') : null,
+          o.coords ? textBlock(ctx, o.coords, `500 ${2.9 * u}px ${FONT}`, 2.9 * u, '#fff') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.1 * u}px ${FONT}`, 3.1 * u, '#fff') : null,
           brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
@@ -284,6 +288,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
         [
           panel,
           o.location ? pinLine(ctx, o.location, 3.4 * u, '#fff') : null,
+          o.coords ? textBlock(ctx, o.coords, `500 ${2.9 * u}px ${FONT}`, 2.9 * u, '#fff') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.1 * u}px ${FONT}`, 3.1 * u, '#fff') : null,
           brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
@@ -298,6 +303,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
         [
           textBlock(ctx, text, `700 ${fs}px ${MONO}`, fs, '#ff8a00'),
           o.location ? textBlock(ctx, o.location, `600 ${3 * u}px ${FONT}`, 3 * u, '#ff8a00') : null,
+          o.coords ? textBlock(ctx, o.coords, `500 ${2.8 * u}px ${MONO}`, 2.8 * u, '#ff8a00') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3 * u}px ${FONT}`, 3 * u, '#ff8a00') : null,
           brandLine(ctx, o, u, '#ff8a00'),
         ],

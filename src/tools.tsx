@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { IconName } from './components/Icon'
+import { loadJSON, saveJSON } from './lib/settings'
 import type { TKey } from './i18n'
 import { useApp } from './state'
 import { createDoc, defaultDocName } from './lib/db'
@@ -53,7 +55,22 @@ export const SECTIONS: { title: TKey; tools: ToolId[] }[] = [
   { title: 'section.utilities', tools: ['print'] },
 ]
 
-export const HOME_TOOLS: ToolId[] = ['smartScan', 'importImages', 'importFiles', 'idCard', 'ocr', 'qrScan', 'idPhoto']
+/** Tools pinned to the Home screen by default; the user can change them (max FAVORITES_MAX). */
+export const DEFAULT_FAVORITES: ToolId[] = ['smartScan', 'importImages', 'importFiles', 'idCard', 'ocr', 'qrScan', 'timestamp']
+// Seven pins plus the "All" tile fill two rows of four.
+export const FAVORITES_MAX = 7
+const FAV_KEY = 'anyscan.favorites'
+
+export function useFavorites(): [ToolId[], (ids: ToolId[]) => void] {
+  const [favs, setFavs] = useState<ToolId[]>(() => loadJSON<ToolId[]>(FAV_KEY, DEFAULT_FAVORITES).filter((id) => id in TOOLS))
+  return [
+    favs,
+    (ids) => {
+      setFavs(ids)
+      saveJSON(FAV_KEY, ids)
+    },
+  ]
+}
 
 const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name)
 

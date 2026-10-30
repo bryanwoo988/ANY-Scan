@@ -9,7 +9,7 @@ import { LANGS, makeT, type Lang } from '../i18n'
 import { clearAll, deleteDocs, renameDoc, type DocRec } from '../lib/db'
 import { formatBytes, FILTERS } from '../lib/image'
 import { useApp, useDocs } from '../state'
-import { HOME_TOOLS, SECTIONS, TOOLS, useTools, type ToolId } from '../tools'
+import { FAVORITES_MAX, SECTIONS, TOOLS, useFavorites, useTools, type ToolId } from '../tools'
 
 function useToolSearch(q: string): ToolId[] {
   return useMemo(() => {
@@ -55,12 +55,48 @@ function InstallHint() {
   )
 }
 
+function FavoritesSheet({ open, onClose, favs, setFavs }: { open: boolean; onClose: () => void; favs: ToolId[]; setFavs: (ids: ToolId[]) => void }) {
+  const { t, toast } = useApp()
+  const toggle = (id: ToolId) => {
+    if (favs.includes(id)) return setFavs(favs.filter((x) => x !== id))
+    if (favs.length >= FAVORITES_MAX) return toast(t('favFull', { n: FAVORITES_MAX }))
+    setFavs([...favs, id])
+  }
+  return (
+    <Sheet open={open} onClose={onClose} title={`${t('favorites')} · ${favs.length}/${FAVORITES_MAX}`}>
+      <p className="muted small">{t('favHint', { n: FAVORITES_MAX })}</p>
+      {SECTIONS.map((s) => (
+        <div key={s.title} className="fav-section">
+          <h3>{t(s.title)}</h3>
+          {s.tools.map((id) => {
+            const on = favs.includes(id)
+            return (
+              <button key={id} className={`fav-row ${on ? 'on' : ''}`} onClick={() => toggle(id)} aria-pressed={on}>
+                <span className="fav-icon" style={{ color: TOOLS[id].color, background: `color-mix(in srgb, ${TOOLS[id].color} 16%, transparent)` }}>
+                  <Icon name={TOOLS[id].icon} size={20} />
+                </span>
+                <span className="grow">{t(TOOLS[id].label)}</span>
+                <span className="fav-star">{on ? '★' : '☆'}</span>
+              </button>
+            )
+          })}
+        </div>
+      ))}
+      <button className="btn primary block" onClick={onClose} style={{ marginTop: 12 }}>
+        {t('done')}
+      </button>
+    </Sheet>
+  )
+}
+
 export function HomeTab() {
   const { t, push, setTab } = useApp()
   const { run } = useTools()
   const docs = useDocs()
   const [q, setQ] = useState('')
   const found = useToolSearch(q)
+  const [favs, setFavs] = useFavorites()
+  const [editFavs, setEditFavs] = useState(false)
 
   return (
     <div className="tab-page home">
@@ -84,12 +120,21 @@ export function HomeTab() {
         </div>
       ) : (
         <>
+          <div className="fav-head">
+            <h2>
+              <Icon name="quality" size={18} /> {t('favorites')}
+            </h2>
+            <button className="link" onClick={() => setEditFavs(true)}>
+              <Icon name="edit" size={15} /> {t('editFavorites')}
+            </button>
+          </div>
           <div className="tool-grid pad">
-            {HOME_TOOLS.map((id) => (
+            {favs.map((id) => (
               <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} />
             ))}
             <ToolTile icon="grid" color="#8a94a6" label={t('all')} onClick={() => setTab('tools')} />
           </div>
+          <FavoritesSheet open={editFavs} onClose={() => setEditFavs(false)} favs={favs} setFavs={setFavs} />
           <InstallHint />
           <section className="card-section">
             <div className="section-head">

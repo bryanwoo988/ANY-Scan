@@ -8,6 +8,10 @@ import { detectQuadRGBA } from '../lib/detect'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d, type Quad } from '../lib/image'
 import { decodeCanvas } from '../lib/qr'
 import { useApp } from '../state'
+import { createDoc, defaultDocName } from '../lib/db'
+import { drawStamp } from '../lib/stamp'
+import { locate, PresetBar, StampContentForm, TemplatePicker, useStampOptions, useStampPrefs, type Place } from '../components/StampEditor'
+import { Segmented } from '../components/ui'
 import { addQrHistory, QrResult } from './Qr'
 
 export type CamMode = 'ocr' | 'idcard' | 'scan' | 'word' | 'qr' | 'idphoto' | 'timestamp'
@@ -89,6 +93,14 @@ function useCamera(facing: Facing) {
 }
 
 /** Grabs the current video frame at full resolution as a JPEG file. */
+/** The part of the frame that is visible in a `cover`-fitted preview of size w×h. */
+function visibleCrop(v: HTMLVideoElement, w: number, h: number) {
+  const k = Math.max(w / v.videoWidth, h / v.videoHeight)
+  const cw = w / k
+  const ch = h / k
+  return { x: (v.videoWidth - cw) / 2, y: (v.videoHeight - ch) / 2, w: cw, h: ch }
+}
+
 async function grabFrame(v: HTMLVideoElement): Promise<File> {
   const c = createCanvas(v.videoWidth, v.videoHeight)
   ctx2d(c).drawImage(v, 0, 0, c.width, c.height)
@@ -97,7 +109,14 @@ async function grabFrame(v: HTMLVideoElement): Promise<File> {
 }
 
 export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode }) {
-  const { t, back, replace, pickFiles, toast, home, setTab } = useApp()
+  const { t, lang, back, replace, push, pickFiles, toast, home, setTab } = useApp()
+  // Timestamp mode: live watermark drawn over the preview and baked into each shot.
+  const stamp = useStampPrefs()
+  const [place, setPlace] = useState<Place | null>(null)
+  const stampOptions = useStampOptions(stamp.prefs, place)
+  const [stampEdit, setStampEdit] = useState<null | 'templates' | 'content'>(null)
+  const [lastStamped, setLastStamped] = useState<{ id: string; url: string } | null>(null)
+  const stampRef = useRef<HTMLCanvasElement>(null)
   const [mode, setMode] = useState<CamMode>(initialMode)
   const [batch, setBatch] = useState(false)
   const [shots, setShots] = useState<File[]>([])
@@ -204,12 +223,59 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     }
   }
 
+  // Look up the position once when the Timestamp camera opens.
+  useEffect(() => {
+    if (mode !== 'timestamp' || !stamp.prefs.autoLocation || place || !navigator.geolocation) return
+    let alive = true
+    locate(lang)
+      .then((p) => alive && setPlace(p))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [mode, stamp.prefs.autoLocation, place, lang])
+
+  // Redraw the watermark every second so the clock is live.
+  useEffect(() => {
+    if (mode !== 'timestamp') return
+    const draw = () => {
+      const c = stampRef.current
+      const stage = stageRef.current
+      if (!c || !stage) return
+      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      c.width = Math.round(stage.clientWidth * dpr)
+      c.height = Math.round(stage.clientHeight * dpr)
+      drawStamp(c, stampOptions(new Date()))
+    }
+    draw()
+    const id = window.setInterval(draw, 1000)
+    return () => window.clearInterval(id)
+  }, [mode, stampOptions])
+
+  useEffect(() => () => {
+    if (lastStamped) URL.revokeObjectURL(lastStamped.url)
+  }, [lastStamped])
+
+  /** Timestamp mode: crop to what is on screen, bake in the watermark, save as its own document. */
+  const shootStamped = async (v: HTMLVideoElement) => {
+    const stage = stageRef.current!
+    const r = visibleCrop(v, stage.clientWidth, stage.clientHeight)
+    const c = createCanvas(r.w, r.h)
+    ctx2d(c).drawImage(v, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height)
+    drawStamp(c, stampOptions(new Date()))
+    const blob = await canvasToBlob(c, 'image/jpeg', 0.92)
+    const d = await createDoc(defaultDocName(t('tool.timestamp')), [{ blob, w: c.width, h: c.height }])
+    setLastStamped({ id: d.id, url: URL.createObjectURL(blob) })
+    toast(t('saved'))
+  }
+
   const shoot = async () => {
     const v = videoRef.current
     if (!v || state !== 'live' || busy || mode === 'qr') return
     setBusy(true)
     setFlash((n) => n + 1)
     try {
+      if (mode === 'timestamp') return await shootStamped(v)
       const f = await grabFrame(v)
       if (mode === 'scan' && batch) setShots((s) => [...s, f])
       else if (mode === 'idcard') {
@@ -292,6 +358,14 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           </div>
         )}
         {mode === 'idphoto' && <div className="cam-guide face" />}
+        {mode === 'timestamp' && (
+          <>
+            <canvas ref={stampRef} className="cam-stamp" />
+            <button className="cam-stamp-edit" onClick={() => setStampEdit('templates')}>
+              <Icon name="edit" size={16} /> {t('ts.edit')}
+            </button>
+          </>
+        )}
         {mode === 'qr' && (
           <div className="cam-guide qr">
             <i />
@@ -332,7 +406,11 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
         </div>
         <div className="cam-controls">
           <div className="cam-side">
-            {shots.length > 0 && mode === 'scan' ? (
+            {mode === 'timestamp' && lastStamped ? (
+              <button className="cam-thumb" onClick={() => push('doc', { id: lastStamped.id })} aria-label={t('view')}>
+                <img src={lastStamped.url} alt="" />
+              </button>
+            ) : shots.length > 0 && mode === 'scan' ? (
               <button className="cam-thumb" onClick={() => deliver(shots)} aria-label={t('doneN', { n: shots.length })}>
                 {shotUrl && <img src={shotUrl} alt="" />}
                 <span className="cam-count">{shots.length}</span>
@@ -387,6 +465,29 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
         </p>
       </Sheet>
       {qrText && <QrResult text={qrText} onClose={() => setQrText(null)} />}
+      <Sheet open={stampEdit != null} onClose={() => setStampEdit(null)} title={t('ts.edit')}>
+        <div className="stack">
+          <Segmented
+            value={stampEdit ?? 'templates'}
+            onChange={setStampEdit}
+            options={[
+              { value: 'templates', label: t('ts.templates') },
+              { value: 'content', label: t('ts.content') },
+            ]}
+          />
+          {stampEdit === 'content' ? (
+            <StampContentForm prefs={stamp.prefs} update={stamp.update} place={place} setPlace={setPlace} live />
+          ) : (
+            <>
+              <PresetBar prefs={stamp.prefs} presetId={stamp.presetId} choosePreset={stamp.choosePreset} />
+              <TemplatePicker prefs={stamp.prefs} update={stamp.update} options={stampOptions} when={new Date()} />
+            </>
+          )}
+          <button className="btn primary block" onClick={() => setStampEdit(null)}>
+            {t('done')}
+          </button>
+        </div>
+      </Sheet>
     </div>
   )
 }
