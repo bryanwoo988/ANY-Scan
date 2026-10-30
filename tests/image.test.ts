@@ -82,3 +82,12 @@ describe('filterPixels', () => {
     expect(d[2]).toBeGreaterThan(245)
   })
 })
+
+describe('formatBytes', () => {
+  it('picks a readable unit', async () => {
+    const { formatBytes } = await import('../src/lib/image')
+    expect(formatBytes(500)).toBe('500 B')
+    expect(formatBytes(15.7 * 1024 ** 2)).toBe('15.7 MB')
+    expect(formatBytes(39321.6 * 1024 ** 2)).toBe('38.4 GB')
+  })
+})
