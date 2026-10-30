@@ -14,3 +14,15 @@ createRoot(document.getElementById('root')!).render(
 )
 
 registerServiceWorker()
+
+// Fade the splash out once the first screen has painted, keeping it up long enough to read.
+const splash = document.getElementById('splash')
+if (splash) {
+  const shown = performance.now()
+  requestAnimationFrame(() =>
+    setTimeout(() => {
+      splash.classList.add('hide')
+      setTimeout(() => splash.remove(), 400)
+    }, Math.max(0, 900 - shown)),
+  )
+}
