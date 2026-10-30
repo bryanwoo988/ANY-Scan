@@ -84,7 +84,8 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* --app-h is set in index.html for iPhone Home Screen apps, where 100% comes out one status bar short. */
+  height: var(--app-h, 100%);
   margin: 0;
 }
 body {
