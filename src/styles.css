@@ -2515,3 +2515,47 @@ p {
   background: #2fbf8f;
   border-color: #2fbf8f;
 }
+
+/* position picker: a small frame with six spots */
+.pos-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  width: 132px;
+  height: 92px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+}
+.pos-picker button {
+  display: grid;
+  border-radius: 6px;
+}
+.pos-picker button:nth-child(-n + 3) {
+  align-items: start;
+}
+.pos-picker button:nth-child(n + 4) {
+  align-items: end;
+}
+.pos-picker button:nth-child(3n + 1) {
+  justify-items: start;
+}
+.pos-picker button:nth-child(3n + 2) {
+  justify-items: center;
+}
+.pos-picker button:nth-child(3n) {
+  justify-items: end;
+}
+.pos-picker span {
+  width: 22px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--muted);
+  opacity: 0.45;
+}
+.pos-picker button.on span {
+  background: var(--accent);
+  opacity: 1;
+}

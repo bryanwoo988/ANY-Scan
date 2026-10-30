@@ -10,7 +10,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.6.1',
+    notes: {
+      en: [
+        'Timestamp: the time/info group and your watermark (logo + text) now each have their own position and size',
+        'Six positions to choose from: top or bottom, left, centre or right',
+      ],
+      zh: ['时间水印：时间信息和你的水印（Logo + 文字）分开，各自调整位置和大小', '可选 6 个位置：上方或下方的左、中、右'],
+      ms: ['Cap masa: kumpulan masa/maklumat dan tera air anda (logo + teks) kini mempunyai kedudukan dan saiz sendiri', 'Enam kedudukan untuk dipilih: atas atau bawah, kiri, tengah atau kanan'],
+    },
+  },
+  {
     version: '1.6.0',
+    released: '2026-10-30T21:16:24Z',
     notes: {
       en: [
         'Camera zoom: pinch on the preview or tap 1× / 2× / 3×; the photo is exactly what you see',

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { blobToCanvas, createCanvas, ctx2d, scaleCanvas } from '../lib/image'
 import { loadJSON, saveJSON } from '../lib/settings'
-import { drawStamp, STAMP_TEMPLATES, type StampOptions, type StampPos, type StampTemplate } from '../lib/stamp'
+import { drawStamp, STAMP_POSITIONS, STAMP_TEMPLATES, type StampOptions, type StampPos, type StampTemplate } from '../lib/stamp'
 import { uid } from '../lib/db'
 import { useApp } from '../state'
 
@@ -18,7 +18,8 @@ export interface StampPrefs {
   note: string
   brand: string
   logo: string | null // data URL
-  logoSize: number
+  brandPos: StampPos // the watermark (logo + text) has its own position…
+  brandSize: number // …and size
   pos: StampPos
   size: number
 }
@@ -41,14 +42,24 @@ export const STAMP_DEFAULTS: StampPrefs = {
   note: '',
   brand: '',
   logo: null,
-  logoSize: 1,
+  brandPos: 'br',
+  brandSize: 1,
   pos: 'bl',
   size: 1,
 }
 
 /** Current settings, persisted on every change. `presetId` is the saved template they came from. */
+/** Fills in defaults and carries over settings saved by older versions. */
+function normalize(raw: Partial<StampPrefs> & { logoSize?: number }): StampPrefs {
+  const n = { ...STAMP_DEFAULTS, ...raw }
+  // v1.6.0 had a "Logo size" that scaled only the logo; it becomes the watermark size.
+  if (raw.brandSize == null && raw.logoSize != null) n.brandSize = raw.logoSize
+  delete (n as { logoSize?: number }).logoSize
+  return n
+}
+
 export function useStampPrefs() {
-  const [prefs, setPrefs] = useState<StampPrefs>(() => ({ ...STAMP_DEFAULTS, ...loadJSON<Partial<StampPrefs>>(KEY, {}) }))
+  const [prefs, setPrefs] = useState<StampPrefs>(() => normalize(loadJSON<Partial<StampPrefs>>(KEY, {})))
   const [presetId, setPresetId] = useState<string | null>(() => loadJSON<string | null>(`${KEY}.preset`, null))
   const update = useCallback((p: Partial<StampPrefs>) => {
     setPrefs((s) => {
@@ -61,7 +72,7 @@ export function useStampPrefs() {
     setPresetId(p?.id ?? null)
     saveJSON(`${KEY}.preset`, p?.id ?? null)
     if (p) {
-      const n = { ...STAMP_DEFAULTS, ...p.prefs }
+      const n = normalize(p.prefs)
       saveJSON(KEY, n)
       setPrefs(n)
     }
@@ -183,7 +194,7 @@ export function PresetBar({ prefs, presetId, choosePreset }: { prefs: StampPrefs
     saveJSON(PRESETS_KEY, list)
   }
   const active = presets.find((p) => p.id === presetId) ?? null
-  const changed = !!active && JSON.stringify({ ...STAMP_DEFAULTS, ...active.prefs }) !== JSON.stringify(prefs)
+  const changed = !!active && JSON.stringify(normalize(active.prefs)) !== JSON.stringify(prefs)
 
   const saveNew = () => {
     const name = window.prompt(t('ts.presetName'), `${t('ts.template')} ${presets.length + 1}`)?.trim()
@@ -247,6 +258,20 @@ export function PresetBar({ prefs, presetId, choosePreset }: { prefs: StampPrefs
   )
 }
 
+/** Six spots on a little frame: top / bottom × left / centre / right. */
+function PositionPicker({ value, onChange }: { value: StampPos; onChange: (p: StampPos) => void }) {
+  const { t } = useApp()
+  return (
+    <div className="pos-picker" role="radiogroup">
+      {STAMP_POSITIONS.map((p) => (
+        <button key={p} role="radio" aria-checked={value === p} aria-label={t(`pos.${p}`)} title={t(`pos.${p}`)} className={value === p ? 'on' : ''} onClick={() => onChange(p)}>
+          <span />
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Content fields. `when`/`setWhen` only for album photos; the camera always uses the live time. */
 export function StampContentForm({ prefs, update, place, setPlace, when, setWhen, live }: { prefs: StampPrefs; update: (p: Partial<StampPrefs>) => void; place: Place | null; setPlace: (p: Place | null) => void; when?: Date; setWhen?: (d: Date) => void; live?: boolean }) {
   const { t, lang, toast, pickFiles } = useApp()
@@ -303,6 +328,14 @@ export function StampContentForm({ prefs, update, place, setPlace, when, setWhen
         <input className="input" value={prefs.note} maxLength={80} placeholder={t('ts.notePlaceholder')} onChange={(e) => update({ note: e.target.value })} />
       </label>
       <div className="field">
+        <span>{t('ts.infoPosition')}</span>
+        <PositionPicker value={prefs.pos} onChange={(v) => update({ pos: v })} />
+      </div>
+      <label className="slider">
+        <span>{t('textSize')}</span>
+        <input type="range" min={0.6} max={1.6} step={0.05} value={prefs.size} onChange={(e) => update({ size: +e.target.value })} />
+      </label>
+      <div className="field">
         <span>{t('ts.myWatermark')}</span>
         <input className="input" value={prefs.brand} maxLength={50} placeholder={t('ts.brandPlaceholder')} onChange={(e) => update({ brand: e.target.value })} />
         <div className="row gap">
@@ -323,27 +356,19 @@ export function StampContentForm({ prefs, update, place, setPlace, when, setWhen
             </button>
           )}
         </div>
-        {prefs.logo && (
-          <label className="slider">
-            <span>{t('ts.logoSize')}</span>
-            <input type="range" min={0.5} max={4} step={0.1} value={prefs.logoSize} onChange={(e) => update({ logoSize: +e.target.value })} />
-          </label>
+        {(prefs.logo || prefs.brand) && (
+          <>
+            <div className="field">
+              <span>{t('ts.brandPosition')}</span>
+              <PositionPicker value={prefs.brandPos} onChange={(v) => update({ brandPos: v })} />
+            </div>
+            <label className="slider">
+              <span>{t('ts.brandSize')}</span>
+              <input type="range" min={0.5} max={4} step={0.1} value={prefs.brandSize} onChange={(e) => update({ brandSize: +e.target.value })} />
+            </label>
+          </>
         )}
       </div>
-      <div className="field">
-        <span>{t('ts.position')}</span>
-        <div className="chip-row">
-          {(['tl', 'tr', 'bl', 'br'] as const).map((p) => (
-            <button key={p} className={`chip ${prefs.pos === p ? 'on' : ''}`} onClick={() => update({ pos: p })}>
-              {t(`pos.${p}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label className="slider">
-        <span>{t('textSize')}</span>
-        <input type="range" min={0.6} max={1.6} step={0.05} value={prefs.size} onChange={(e) => update({ size: +e.target.value })} />
-      </label>
     </div>
   )
 }

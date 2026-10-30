@@ -3,7 +3,9 @@
 
 export type StampTemplate = 'timeLocation' | 'onSite' | 'clockIn' | 'digital' | 'classic'
 export const STAMP_TEMPLATES: StampTemplate[] = ['timeLocation', 'onSite', 'clockIn', 'digital', 'classic']
-export type StampPos = 'tl' | 'tr' | 'bl' | 'br'
+/** Top/bottom × left/centre/right. */
+export type StampPos = 'tl' | 'tc' | 'tr' | 'bl' | 'bc' | 'br'
+export const STAMP_POSITIONS: StampPos[] = ['tl', 'tc', 'tr', 'bl', 'bc', 'br']
 
 export interface StampOptions {
   template: StampTemplate
@@ -15,9 +17,11 @@ export interface StampOptions {
   note: string
   brand: string // the user's own watermark line, e.g. a company name
   logo: HTMLImageElement | null
-  logoSize: number // logo height relative to the watermark text, 0.5 – 4
-  pos: StampPos
-  size: number // 0.6 – 1.6
+  pos: StampPos // where the time / date / location / note group goes
+  size: number // 0.6 – 1.6, size of that group
+  // The user's watermark (logo + text) is a separate group with its own position and size.
+  brandPos: StampPos
+  brandSize: number // 0.5 – 4
   locale: string // BCP 47, for the weekday name
   labels: { onSite: string; clockIn: string; time: string; location: string; note: string; gps: string }
 }
@@ -83,7 +87,7 @@ function brandLine(ctx: CanvasRenderingContext2D, o: StampOptions, u: number, co
   if (!o.brand && !o.logo) return null
   const fs = 2.6 * u
   const font = `500 ${fs}px ${FONT}`
-  const logoH = o.logo ? fs * 1.5 * (o.logoSize || 1) : 0
+  const logoH = o.logo ? fs * 1.5 : 0
   const logoW = o.logo ? (logoH * o.logo.width) / o.logo.height : 0
   const gap = o.logo && o.brand ? fs * 0.5 : 0
   const tw = o.brand ? measure(ctx, font, o.brand) : 0
@@ -94,10 +98,14 @@ function brandLine(ctx: CanvasRenderingContext2D, o: StampOptions, u: number, co
       const h = Math.max(logoH, fs * 1.3)
       if (o.logo) ctx.drawImage(o.logo, x, y + (h - logoH) / 2, logoW, logoH)
       if (o.brand) {
+        ctx.save()
         ctx.font = font
         ctx.fillStyle = color
         ctx.textBaseline = 'middle'
+        ctx.shadowColor = 'rgba(0,0,0,.55)'
+        ctx.shadowBlur = fs * 0.18
         ctx.fillText(o.brand, x + logoW + gap, y + h / 2)
+        ctx.restore()
       }
     },
   }
@@ -169,7 +177,6 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           o.location ? pinLine(ctx, o.location, 3.6 * u, white) : null,
           o.coords ? textBlock(ctx, o.coords, `500 ${3 * u}px ${FONT}`, 3 * u, white) : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.2 * u}px ${FONT}`, 3.2 * u, white) : null,
-          brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
         1.2 * u,
       )
@@ -210,7 +217,7 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           ctx.restore()
         },
       }
-      return stack([card, brandLine(ctx, o, u, '#fff')], 1.2 * u)
+      return card
     }
     case 'clockIn': {
       const big = 10 * u
@@ -249,7 +256,6 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           o.location ? pinLine(ctx, o.location, 3.4 * u, '#fff') : null,
           o.coords ? textBlock(ctx, o.coords, `500 ${2.9 * u}px ${FONT}`, 2.9 * u, '#fff') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.1 * u}px ${FONT}`, 3.1 * u, '#fff') : null,
-          brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
         1.2 * u,
       )
@@ -291,7 +297,6 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           o.location ? pinLine(ctx, o.location, 3.4 * u, '#fff') : null,
           o.coords ? textBlock(ctx, o.coords, `500 ${2.9 * u}px ${FONT}`, 2.9 * u, '#fff') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3.1 * u}px ${FONT}`, 3.1 * u, '#fff') : null,
-          brandLine(ctx, o, u, 'rgba(255,255,255,.85)'),
         ],
         1.2 * u,
       )
@@ -306,7 +311,6 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
           o.location ? textBlock(ctx, o.location, `600 ${3 * u}px ${FONT}`, 3 * u, '#ff8a00') : null,
           o.coords ? textBlock(ctx, o.coords, `500 ${2.8 * u}px ${MONO}`, 2.8 * u, '#ff8a00') : null,
           o.note ? textBlock(ctx, o.note, `500 ${3 * u}px ${FONT}`, 3 * u, '#ff8a00') : null,
-          brandLine(ctx, o, u, '#ff8a00'),
         ],
         0.8 * u,
       )
@@ -314,18 +318,54 @@ function buildBlock(ctx: CanvasRenderingContext2D, o: StampOptions, u: number): 
   }
 }
 
-/** Draws the stamp onto `c` (which already holds the photo). */
+/** Top-left corner for a block of size w×h at position `pos`, `margin` from the edges. */
+function place(pos: StampPos, w: number, h: number, W: number, H: number, margin: number) {
+  const x = pos.endsWith('l') ? margin : pos.endsWith('r') ? W - margin - w : (W - w) / 2
+  const y = pos.startsWith('t') ? margin : H - margin - h
+  return { x, y }
+}
+
+/**
+ * Draws the stamp onto `c` (which already holds the photo): the time/info group at `pos` and the
+ * user's watermark group at `brandPos`, each with its own size. If both are put in the same spot
+ * they are stacked (info first) so they don't overlap.
+ */
 export function drawStamp(c: HTMLCanvasElement, o: StampOptions): void {
   const ctx = c.getContext('2d')!
-  const u = (Math.min(c.width, c.height) / 100) * o.size
+  const base = Math.min(c.width, c.height) / 100
+  const W = c.width
+  const H = c.height
+  const brandColor = o.template === 'classic' ? '#ff8a00' : 'rgba(255,255,255,.92)'
   ctx.save()
-  const b = buildBlock(ctx, o, u)
-  // Shrink to fit if a long location or note would run off the photo.
-  const margin = 4 * u
-  const fit = Math.min(1, (c.width - margin * 2) / b.w, (c.height - margin * 2) / b.h)
-  const block = fit < 1 ? buildBlock(ctx, { ...o, size: o.size * fit }, u * fit) : b
-  const x = o.pos.endsWith('r') ? c.width - margin - block.w : margin
-  const y = o.pos.startsWith('b') ? c.height - margin - block.h : margin
-  block.draw(x, y)
+  // Shrink a group to fit if a long location, note or watermark would run off the photo.
+  const fitted = (build: (scale: number) => Block | null, scale: number, margin: number) => {
+    const b = build(scale)
+    if (!b) return null
+    const f = Math.min(1, (W - margin * 2) / b.w, (H - margin * 2) / b.h)
+    return f < 1 ? build(scale * f) : b
+  }
+  const margin = 4 * base
+  const info = fitted((k) => buildBlock(ctx, { ...o, size: k }, base * k), o.size, margin)!
+  const brand = fitted((k) => brandLine(ctx, o, base * k, brandColor), o.brandSize, margin)
+  if (brand && o.brandPos === o.pos) {
+    const gap = 1.2 * base * o.size
+    const both = stack([info, brand], gap)
+    const xy = place(o.pos, both.w, both.h, W, H, margin)
+    // Centre each group within the shared column when the column is centred.
+    if (o.pos.endsWith('c')) {
+      info.draw(xy.x + (both.w - info.w) / 2, xy.y)
+      brand.draw(xy.x + (both.w - brand.w) / 2, xy.y + info.h + gap)
+    } else if (o.pos.endsWith('r')) {
+      info.draw(xy.x + both.w - info.w, xy.y)
+      brand.draw(xy.x + both.w - brand.w, xy.y + info.h + gap)
+    } else both.draw(xy.x, xy.y)
+  } else {
+    const a = place(o.pos, info.w, info.h, W, H, margin)
+    info.draw(a.x, a.y)
+    if (brand) {
+      const b = place(o.brandPos, brand.w, brand.h, W, H, margin)
+      brand.draw(b.x, b.y)
+    }
+  }
   ctx.restore()
 }
