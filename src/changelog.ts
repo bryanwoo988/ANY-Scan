@@ -3,14 +3,23 @@ import type { Lang } from './i18n'
 
 export interface Release {
   version: string
-  date: string // YYYY-MM-DD
+  /** Publish time (UTC, ISO 8601). Leave out for the version being built: the build time is used. */
+  released?: string
   notes: Record<Lang, string[]>
 }
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.5.2',
+    notes: {
+      en: ['Update dates are now shown in your phone\'s time zone, with the time of release'],
+      zh: ['更新记录的日期改为按手机所在时区显示，并加上发布时间'],
+      ms: ['Tarikh kemas kini kini dipaparkan mengikut zon waktu telefon anda, bersama masa keluaran'],
+    },
+  },
+  {
     version: '1.5.1',
-    date: '2026-10-30',
+    released: '2026-10-30T21:07:32Z',
     notes: {
       en: [
         'Steadier scan outline: no more flicker or jumping; it glides smoothly and turns green when the page is locked',
@@ -27,7 +36,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.5.0',
-    date: '2026-10-30',
+    released: '2026-10-30T20:47:42Z',
     notes: {
       en: [
         'Timestamp camera: see the watermark live on the camera, with a ticking clock, location and GPS coordinates',
@@ -44,7 +53,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.4.0',
-    date: '2026-10-30',
+    released: '2026-10-30T15:52:38Z',
     notes: {
       en: [
         'Timestamp templates: Time & Location, On-Site, Clock-In, Digital Clock and Classic',
@@ -61,7 +70,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.3.1',
-    date: '2026-10-30',
+    released: '2026-10-30T15:46:51Z',
     notes: {
       en: ['Fixed: AnyScan now opens without internet after your first visit (it could get stuck on the splash screen)'],
       zh: ['修复：首次打开后，没有网络也能正常打开 AnyScan（之前可能会卡在启动画面）'],
@@ -70,7 +79,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.3.0',
-    date: '2026-10-30',
+    released: '2026-10-30T14:36:04Z',
     notes: {
       en: [
         'New in-app camera: live preview that outlines the page as you aim',
@@ -97,7 +106,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.2.0',
-    date: '2026-10-30',
+    released: '2026-10-30T13:29:59Z',
     notes: {
       en: [
         'Smarter Smart Scan: much better at finding the page edges on light tables, coloured ID cards, rotated paper and patterned backgrounds',
@@ -127,7 +136,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.1.0',
-    date: '2026-10-30',
+    released: '2026-10-30T13:19:20Z',
     notes: {
       en: ['Redesigned bottom tab bar with evenly spaced tabs', '"Me" is now "Settings"', 'Share AnyScan with friends using a QR code or link'],
       zh: ['重新设计底部导航栏，按钮间距平均', '"我的"改为"设置"', '可用二维码或链接把 AnyScan 分享给朋友'],
@@ -136,7 +145,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: '1.0.0',
-    date: '2026-10-30',
+    released: '2026-10-30T12:53:01Z',
     notes: {
       en: [
         'First release: Smart Scan with edge detection and filters, ID Card, ID Photo, Timestamp',
@@ -158,6 +167,13 @@ export const CHANGELOG: Release[] = [
 ]
 
 export const APP_VERSION = __APP_VERSION__
+
+/** When a release went out, in the phone's own time zone and date format. */
+export function releaseTime(r: Release, lang: Lang): string {
+  const d = new Date(r.released ?? __BUILD_TIME__)
+  const locale = lang === 'zh' ? 'zh-CN' : lang === 'ms' ? 'ms-MY' : 'en-GB'
+  return d.toLocaleString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 /** Compares dotted versions numerically: negative if a < b. */
 export function compareVersions(a: string, b: string): number {

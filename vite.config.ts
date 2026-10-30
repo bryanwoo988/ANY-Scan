@@ -30,6 +30,7 @@ export default defineConfig({
   plugins: [react(), stampServiceWorker()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   build: { target: 'es2022', chunkSizeWarningLimit: 2000 },
 })

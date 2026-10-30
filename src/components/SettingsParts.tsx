@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import { Screen, Segmented, Sheet } from './ui'
-import { APP_VERSION, CHANGELOG, compareVersions, type Release } from '../changelog'
+import { APP_VERSION, CHANGELOG, compareVersions, releaseTime, type Release } from '../changelog'
 import { formatBytes } from '../lib/image'
 import { loadJSON, saveJSON } from '../lib/settings'
 import { applyUpdate, checkForUpdate, onUpdateReady } from '../lib/update'
@@ -72,7 +72,7 @@ export function ReleaseNotes({ r, latest }: { r: Release; latest?: boolean }) {
       <div className="release-head">
         <span className="release-ver">v{r.version}</span>
         {latest && <span className="badge">{t('current')}</span>}
-        <span className="muted small">{r.date}</span>
+        <span className="muted small">{releaseTime(r, lang)}</span>
       </div>
       <ul>
         {r.notes[lang].map((n) => (
