@@ -18,6 +18,7 @@ export interface StampPrefs {
   note: string
   brand: string
   logo: string | null // data URL
+  logoSize: number
   pos: StampPos
   size: number
 }
@@ -40,6 +41,7 @@ export const STAMP_DEFAULTS: StampPrefs = {
   note: '',
   brand: '',
   logo: null,
+  logoSize: 1,
   pos: 'bl',
   size: 1,
 }
@@ -321,6 +323,12 @@ export function StampContentForm({ prefs, update, place, setPlace, when, setWhen
             </button>
           )}
         </div>
+        {prefs.logo && (
+          <label className="slider">
+            <span>{t('ts.logoSize')}</span>
+            <input type="range" min={0.5} max={4} step={0.1} value={prefs.logoSize} onChange={(e) => update({ logoSize: +e.target.value })} />
+          </label>
+        )}
       </div>
       <div className="field">
         <span>{t('ts.position')}</span>

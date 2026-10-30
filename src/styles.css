@@ -2423,3 +2423,95 @@ p {
 .fav-row.on .fav-star {
   color: var(--warn);
 }
+
+/* camera: zoom, grid, timer, auto-capture */
+.cam-stage {
+  touch-action: none;
+}
+.cam-stage video {
+  transform-origin: center;
+  transition: transform 0.08s linear;
+}
+.cam-icon {
+  position: relative;
+}
+.cam-icon-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd400;
+}
+.cam-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cam-grid line {
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 1;
+}
+.cam-zoom {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.55);
+}
+.cam-zoom.above-seg {
+  bottom: 68px;
+}
+.cam-zoom button {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cam-zoom button.on {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffd400;
+  font-size: 14px;
+}
+.cam-countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 120px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: cam-count 1s ease-out infinite;
+}
+@keyframes cam-count {
+  from {
+    transform: scale(1.25);
+    opacity: 0.4;
+  }
+}
+.cam-auto {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 700;
+}
+.cam-auto.on {
+  color: #04150f;
+  background: #2fbf8f;
+  border-color: #2fbf8f;
+}

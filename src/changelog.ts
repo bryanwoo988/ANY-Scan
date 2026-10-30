@@ -10,7 +10,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.6.0',
+    notes: {
+      en: [
+        'Camera zoom: pinch on the preview or tap 1× / 2× / 3×; the photo is exactly what you see',
+        'Grid lines and a self-timer (3 s / 10 s) in the camera',
+        'Auto-capture in Scan mode: takes the photo by itself once the page outline turns green',
+        'Timestamp: separate Logo size slider (up to 4×)',
+      ],
+      zh: ['相机缩放：在画面上双指缩放，或点 1× / 2× / 3×；拍到的就是画面上看到的', '相机新增网格线和定时拍照（3 秒 / 10 秒）', '扫描模式新增「自动拍」：文件框变绿后会自动拍照', '时间水印：可单独调整 Logo 大小（最大 4 倍）'],
+      ms: [
+        'Zum kamera: cubit pada pratonton atau tekan 1× / 2× / 3×; foto sama seperti yang anda lihat',
+        'Garis grid dan pemasa (3 s / 10 s) dalam kamera',
+        'Ambil automatik dalam mod Imbas: foto diambil sendiri apabila bingkai halaman bertukar hijau',
+        'Cap masa: gelangsar Saiz logo berasingan (sehingga 4×)',
+      ],
+    },
+  },
+  {
     version: '1.5.2',
+    released: '2026-10-30T21:09:11Z',
     notes: {
       en: ['Update dates are now shown in your phone\'s time zone, with the time of release'],
       zh: ['更新记录的日期改为按手机所在时区显示，并加上发布时间'],

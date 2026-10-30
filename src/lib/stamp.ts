@@ -15,6 +15,7 @@ export interface StampOptions {
   note: string
   brand: string // the user's own watermark line, e.g. a company name
   logo: HTMLImageElement | null
+  logoSize: number // logo height relative to the watermark text, 0.5 – 4
   pos: StampPos
   size: number // 0.6 – 1.6
   locale: string // BCP 47, for the weekday name
@@ -82,7 +83,7 @@ function brandLine(ctx: CanvasRenderingContext2D, o: StampOptions, u: number, co
   if (!o.brand && !o.logo) return null
   const fs = 2.6 * u
   const font = `500 ${fs}px ${FONT}`
-  const logoH = o.logo ? fs * 1.5 : 0
+  const logoH = o.logo ? fs * 1.5 * (o.logoSize || 1) : 0
   const logoW = o.logo ? (logoH * o.logo.width) / o.logo.height : 0
   const gap = o.logo && o.brand ? fs * 0.5 : 0
   const tw = o.brand ? measure(ctx, font, o.brand) : 0
