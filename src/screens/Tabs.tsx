@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { ShareAppCard } from '../components/ShareApp'
 import { DocRow, Empty, Segmented, Sheet, TextDialog, ToolTile } from '../components/ui'
 import { LANGS, makeT, type Lang } from '../i18n'
 import { clearAll, deleteDocs, renameDoc, type DocRec } from '../lib/db'
@@ -59,7 +60,7 @@ export function HomeTab() {
   const found = useToolSearch(q)
 
   return (
-    <div className="tab-page">
+    <div className="tab-page home">
       <div className="topbar">
         <label className="search">
           <Icon name="search" size={20} />
@@ -237,7 +238,7 @@ export function ToolsTab() {
   )
 }
 
-export function MeTab() {
+export function SettingsTab() {
   const { t, settings, setSettings, lang, toast } = useApp()
   const [usage, setUsage] = useState<string>('')
   const [sheet, setSheet] = useState<null | 'lang'>(null)
@@ -250,15 +251,9 @@ export function MeTab() {
   return (
     <div className="tab-page">
       <div className="topbar">
-        <h1 className="tab-title">{t('tab.me')}</h1>
+        <h1 className="tab-title">{t('tab.settings')}</h1>
       </div>
-      <div className="profile pad">
-        <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} width={64} height={64} alt="" className="profile-logo" />
-        <div>
-          <div className="profile-name">AnyScan</div>
-          <div className="muted">{t('tagline')}</div>
-        </div>
-      </div>
+      <ShareAppCard />
 
       <div className="settings">
         <button className="setting" onClick={() => setSheet('lang')}>
@@ -348,7 +343,7 @@ export function MeTab() {
         <p>
           <Icon name="lock" size={16} /> {t('privacyNote')}
         </p>
-        <p>AnyScan v1.0.0</p>
+        <p>AnyScan v1.1.0 · {t('tagline')}</p>
       </div>
 
       <Sheet open={sheet === 'lang'} onClose={() => setSheet(null)} title={t('language')}>

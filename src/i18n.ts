@@ -5,7 +5,7 @@ const en = {
   'tab.home': 'Home',
   'tab.docs': 'Documents',
   'tab.tools': 'Tools',
-  'tab.me': 'Me',
+  'tab.settings': 'Settings',
   'section.scan': 'Scan',
   'section.qr': 'QR Code',
   'section.import': 'Import',
@@ -219,6 +219,15 @@ const en = {
   qrTooLong: 'Too much data for a QR code. Shorten the text or lower error correction.',
   color: 'Colour',
   errorCorrection: 'Error correction',
+  shareApp: 'Share AnyScan',
+  shareAppSub: 'Free scanner, no ads, no sign-up. Let friends scan the QR code or send them the link.',
+  shareAppText: 'AnyScan: free document scanner with PDF tools and QR codes. No ads, no sign-up.',
+  showQr: 'Show QR code',
+  scanToGet: 'Scan with the phone camera to open AnyScan',
+  shareLink: 'Share link',
+  copyLink: 'Copy message',
+  saveQr: 'Save QR',
+  linkCopied: 'Link copied',
 }
 
 export type TKey = keyof typeof en
@@ -228,7 +237,7 @@ const zh: Dict = {
   'tab.home': '首页',
   'tab.docs': '文档',
   'tab.tools': '工具',
-  'tab.me': '我的',
+  'tab.settings': '设置',
   'section.scan': '扫描',
   'section.qr': '二维码',
   'section.import': '导入',
@@ -442,13 +451,22 @@ const zh: Dict = {
   qrTooLong: '内容太长，无法生成二维码。请缩短内容或降低容错等级。',
   color: '颜色',
   errorCorrection: '容错等级',
+  shareApp: '分享 AnyScan',
+  shareAppSub: '免费扫描，无广告、免注册。让朋友扫二维码，或直接发链接给他们。',
+  shareAppText: 'AnyScan：免费文档扫描，附带 PDF 工具和二维码功能。无广告、免注册。',
+  showQr: '显示二维码',
+  scanToGet: '用手机相机扫码即可打开 AnyScan',
+  shareLink: '分享链接',
+  copyLink: '复制推荐语',
+  saveQr: '保存二维码',
+  linkCopied: '链接已复制',
 }
 
 const ms: Dict = {
   'tab.home': 'Utama',
   'tab.docs': 'Dokumen',
   'tab.tools': 'Alatan',
-  'tab.me': 'Saya',
+  'tab.settings': 'Tetapan',
   'section.scan': 'Imbas',
   'section.qr': 'Kod QR',
   'section.import': 'Import',
@@ -662,6 +680,15 @@ const ms: Dict = {
   qrTooLong: 'Data terlalu banyak untuk kod QR. Pendekkan teks atau turunkan pembetulan ralat.',
   color: 'Warna',
   errorCorrection: 'Pembetulan ralat',
+  shareApp: 'Kongsi AnyScan',
+  shareAppSub: 'Pengimbas percuma, tiada iklan, tiada pendaftaran. Biar rakan imbas kod QR atau hantar pautan kepada mereka.',
+  shareAppText: 'AnyScan: pengimbas dokumen percuma dengan alatan PDF dan kod QR. Tiada iklan, tiada pendaftaran.',
+  showQr: 'Tunjuk kod QR',
+  scanToGet: 'Imbas dengan kamera telefon untuk buka AnyScan',
+  shareLink: 'Kongsi pautan',
+  copyLink: 'Salin mesej',
+  saveQr: 'Simpan QR',
+  linkCopied: 'Pautan disalin',
 }
 
 export const DICTS = { en, zh, ms } as const

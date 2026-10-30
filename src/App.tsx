@@ -1,7 +1,7 @@
 import { Icon } from './components/Icon'
 import { useApp, type Tab } from './state'
 import { useTools } from './tools'
-import { DocsTab, HomeTab, MeTab, ToolsTab } from './screens/Tabs'
+import { DocsTab, HomeTab, SettingsTab, ToolsTab } from './screens/Tabs'
 import { ScanScreen } from './screens/Scan'
 import { DocScreen, ExportScreen, MergeScreen, PageScreen, PagesScreen, PickImportScreen, PickScreen, PrintScreen } from './screens/Doc'
 import { OcrScreen, SignScreen, TimestampScreen, WatermarkScreen } from './screens/Edit'
@@ -31,11 +31,11 @@ const ROUTES: Record<string, ComponentType<any>> = {
   qrcreate: QrCreateScreen,
 }
 
-const TABS: { id: Tab; icon: 'home' | 'docs' | 'grid' | 'user' }[] = [
+const TABS: { id: Tab; icon: 'home' | 'docs' | 'grid' | 'settings' }[] = [
   { id: 'home', icon: 'home' },
   { id: 'docs', icon: 'docs' },
   { id: 'tools', icon: 'grid' },
-  { id: 'me', icon: 'user' },
+  { id: 'settings', icon: 'settings' },
 ]
 
 export default function App() {
@@ -51,21 +51,27 @@ export default function App() {
           {tab === 'home' && <HomeTab />}
           {tab === 'docs' && <DocsTab />}
           {tab === 'tools' && <ToolsTab />}
-          {tab === 'me' && <MeTab />}
+          {tab === 'settings' && <SettingsTab />}
         </div>
         <nav className="tabbar">
           {TABS.slice(0, 2).map((x) => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)}>
-              <Icon name={x.icon} />
+              <span className="tab-ico">
+                <Icon name={x.icon} size={22} />
+              </span>
               <span>{t(`tab.${x.id}`)}</span>
             </button>
           ))}
-          <button className="fab" onClick={() => run('smartScan')} aria-label={t('tool.smartScan')}>
-            <Icon name="camera" size={30} />
-          </button>
+          <div className="fab-slot">
+            <button className="fab" onClick={() => run('smartScan')} aria-label={t('tool.smartScan')}>
+              <Icon name="camera" size={28} />
+            </button>
+          </div>
           {TABS.slice(2).map((x) => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)}>
-              <Icon name={x.icon} />
+              <span className="tab-ico">
+                <Icon name={x.icon} size={22} />
+              </span>
               <span>{t(`tab.${x.id}`)}</span>
             </button>
           ))}

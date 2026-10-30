@@ -3,7 +3,7 @@ import { detectLang, makeT, type Lang, type TFn } from './i18n'
 import { loadSettings, storeSettings, type Settings } from './lib/settings'
 import { listDocs, onDbChange, type DocRec } from './lib/db'
 
-export type Tab = 'home' | 'docs' | 'tools' | 'me'
+export type Tab = 'home' | 'docs' | 'tools' | 'settings'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Route = { name: string; params: any; key: number }
