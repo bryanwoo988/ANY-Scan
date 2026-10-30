@@ -9,6 +9,33 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.3.0',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'New in-app camera: live preview that outlines the page as you aim',
+        'Single or Batch shooting: take many pages in a row, then edit them together',
+        'Swipe or tap the mode strip to switch: Extract Text, ID Card, Scan, To Word, QR Code, ID Photo, Timestamp',
+        'ID Card mode guides you through the front and back',
+        'Flip camera, flash (where supported), and the system camera for full-resolution photos',
+      ],
+      zh: [
+        '全新内置相机：实时预览，对准时自动框出文件边缘',
+        '单张或多张连拍：一次拍多页，再一起编辑',
+        '左右滑动或点选下方模式：提取文字、证件扫描、扫描、转 Word、二维码、证件照、时间水印',
+        '证件模式会引导你依次拍正面和反面',
+        '可切换前后镜头、闪光灯（支持的设备），也可改用系统相机拍全分辨率照片',
+      ],
+      ms: [
+        'Kamera dalam aplikasi baharu: pratonton langsung yang menandakan tepi halaman semasa anda menghala',
+        'Ambil Tunggal atau Kelompok: ambil banyak halaman berturut-turut, kemudian sunting bersama',
+        'Leret atau tekan jalur mod untuk bertukar: Ekstrak Teks, Kad Pengenalan, Imbas, Ke Word, Kod QR, Foto Pasport, Cap Masa',
+        'Mod Kad Pengenalan membimbing anda mengambil bahagian depan dan belakang',
+        'Tukar kamera, lampu kilat (jika disokong), dan kamera sistem untuk foto resolusi penuh',
+      ],
+    },
+  },
+  {
     version: '1.2.0',
     date: '2026-10-30',
     notes: {

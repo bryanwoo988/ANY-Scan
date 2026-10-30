@@ -11,7 +11,7 @@ import { loadJSON, saveJSON } from '../lib/settings'
 import { copyText, shareOrDownload } from '../lib/share'
 import { useApp } from '../state'
 
-function addHistory(text: string, source: 'scan' | 'create') {
+export function addQrHistory(text: string, source: 'scan' | 'create') {
   const h = loadJSON<QrHistoryItem[]>(QR_HISTORY_KEY, []).filter((x) => !(x.text === text && x.source === source))
   saveJSON(QR_HISTORY_KEY, [{ id: uid(), text, at: Date.now(), source }, ...h].slice(0, 100))
 }
@@ -182,7 +182,7 @@ export function QrScanScreen() {
         const r = await decodeCanvas(canvas)
         if (r && alive && !paused.current) {
           navigator.vibrate?.(60)
-          addHistory(r, 'scan')
+          addQrHistory(r, 'scan')
           setResult(r)
         }
       }
@@ -212,7 +212,7 @@ export function QrScanScreen() {
       const c = await blobToCanvas(f[0], 1600)
       const r = await decodeCanvas(c)
       if (r) {
-        addHistory(r, 'scan')
+        addQrHistory(r, 'scan')
         setResult(r)
       } else toast(t('noQrFound'))
     })
@@ -321,7 +321,7 @@ export function QrCreateScreen({ text: initial }: { text?: string }) {
           <button
             disabled={!content || tooLong}
             onClick={async () => {
-              addHistory(content, 'create')
+              addQrHistory(content, 'create')
               await shareOrDownload([{ blob: await pngBlob(), name: 'AnyScan-QR.png' }])
             }}
           >
@@ -336,7 +336,7 @@ export function QrCreateScreen({ text: initial }: { text?: string }) {
             className="accent"
             disabled={!content || tooLong}
             onClick={async () => {
-              addHistory(content, 'create')
+              addQrHistory(content, 'create')
               // Put the code on a white A4-ish page so it can be printed or shared as PDF.
               const qr = canvasRef.current!
               const page = createCanvas(1240, 1754)

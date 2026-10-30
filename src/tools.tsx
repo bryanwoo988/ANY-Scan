@@ -98,19 +98,19 @@ export function useTools() {
   function run(id: ToolId) {
     switch (id) {
       case 'smartScan':
-        return pickFiles({ accept: 'image/*', capture: true }).then((f) => f.length && push('scan', { files: f }))
+        return push('camera', { mode: 'scan' })
       case 'importImages':
         return pickFiles({ accept: 'image/*', multiple: true }).then((f) => f.length && push('scan', { files: f }))
       case 'importFiles':
         return pickFiles({ accept: 'application/pdf,image/*', multiple: true }).then((f) => void (f.length && importFileList(f)))
       case 'idCard':
-        return push('idcard')
+        return push('camera', { mode: 'idcard' })
       case 'ocr':
-        return push('ocr', {})
+        return push('camera', { mode: 'ocr' })
       case 'idPhoto':
-        return pickFiles({ accept: 'image/*' }).then((f) => f.length && push('idphoto', { file: f[0] }))
+        return push('camera', { mode: 'idphoto' })
       case 'timestamp':
-        return pickFiles({ accept: 'image/*', capture: true }).then((f) => f.length && push('timestamp', { file: f[0] }))
+        return push('camera', { mode: 'timestamp' })
       case 'toWord':
         return push('pick', { title: 'tool.toWord', next: 'ocr', nextParams: { docx: true } })
       case 'pdfToImages':

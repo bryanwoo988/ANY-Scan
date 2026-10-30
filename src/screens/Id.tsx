@@ -15,17 +15,27 @@ const PX_PER_MM = A4.w / 210
 
 type Side = { src: HTMLCanvasElement; quad: Quad } | null
 
-export function IdCardScreen() {
+async function sideFromFile(f: File): Promise<NonNullable<Side>> {
+  const src = await blobToCanvas(f)
+  return { src, quad: detectDocument(src) ?? fullQuad(src.width, src.height) }
+}
+
+/** `files`: front (and optionally back) photos already taken with the in-app camera. */
+export function IdCardScreen({ files }: { files?: File[] }) {
   const { t, pickFiles, setBusy, replace, toast } = useApp()
   const [sides, setSides] = useState<[Side, Side]>([null, null])
   const [editing, setEditing] = useState<0 | 1 | null>(null)
 
+  useEffect(() => {
+    if (!files?.length) return
+    Promise.all(files.slice(0, 2).map(sideFromFile)).then((s) => setSides([s[0] ?? null, s[1] ?? null]))
+  }, [files])
+
   const capture = (i: 0 | 1, camera: boolean) =>
     pickFiles({ accept: 'image/*', capture: camera }).then(async (f) => {
       if (!f.length) return
-      const src = await blobToCanvas(f[0])
-      const quad = detectDocument(src) ?? fullQuad(src.width, src.height)
-      setSides((s) => (i === 0 ? [{ src, quad }, s[1]] : [s[0], { src, quad }]))
+      const side = await sideFromFile(f[0])
+      setSides((s) => (i === 0 ? [side, s[1]] : [s[0], side]))
       setEditing(i)
     })
 

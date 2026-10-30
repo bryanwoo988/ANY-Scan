@@ -7,6 +7,7 @@ import { DocScreen, ExportScreen, MergeScreen, PageScreen, PagesScreen, PickImpo
 import { OcrScreen, SignScreen, TimestampScreen, WatermarkScreen } from './screens/Edit'
 import { IdCardScreen, IdPhotoScreen } from './screens/Id'
 import { QrCreateScreen, QrHubScreen, QrScanScreen } from './screens/Qr'
+import { CameraScreen } from './screens/Camera'
 import type { ComponentType } from 'react'
 import { LanguagePicker } from './components/LanguagePicker'
 import { HistoryScreen, UpdateBanner, useShowWhatsNewOnUpgrade, WhatsNewSheet } from './components/SettingsParts'
@@ -32,6 +33,7 @@ const ROUTES: Record<string, ComponentType<any>> = {
   qrscan: QrScanScreen,
   qrcreate: QrCreateScreen,
   history: HistoryScreen,
+  camera: CameraScreen,
 }
 
 const TABS: { id: Tab; icon: 'home' | 'docs' | 'grid' | 'settings' }[] = [
