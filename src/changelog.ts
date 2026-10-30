@@ -9,6 +9,23 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.5.1',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'Steadier scan outline: no more flicker or jumping; it glides smoothly and turns green when the page is locked',
+        'Smoother camera preview (page detection now runs in the background)',
+        'More accurate page edges on light tables and with uneven lighting',
+      ],
+      zh: ['扫描框更稳定：不再闪烁跳动，移动顺滑，对准文件后会变成绿色', '相机预览更流畅（文件识别改在后台进行）', '浅色桌面和光线不均时，文件边缘识别更准确'],
+      ms: [
+        'Bingkai imbasan lebih stabil: tiada lagi berkelip atau melompat; bergerak lancar dan bertukar hijau apabila halaman dikunci',
+        'Pratonton kamera lebih lancar (pengesanan halaman kini berjalan di latar belakang)',
+        'Tepi halaman lebih tepat di atas meja cerah dan dalam pencahayaan tidak sekata',
+      ],
+    },
+  },
+  {
     version: '1.5.0',
     date: '2026-10-30',
     notes: {

@@ -2033,12 +2033,27 @@ p {
   inset: 0;
   pointer-events: none;
 }
+.cam-overlay {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.cam-overlay.on {
+  opacity: 1;
+}
+/* Searching: thin white dashed outline. Locked (held still): solid green, ready to shoot. */
 .cam-overlay polygon {
-  fill: rgba(47, 191, 143, 0.18);
-  stroke: #2fbf8f;
-  stroke-width: 3;
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5;
+  stroke-dasharray: 10 7;
   stroke-linejoin: round;
-  transition: all 0.25s ease;
+  transition: fill 0.3s, stroke 0.3s;
+}
+.cam-overlay.locked polygon {
+  fill: rgba(47, 191, 143, 0.2);
+  stroke: #2fbf8f;
+  stroke-width: 3.5;
+  stroke-dasharray: none;
 }
 .cam-guide {
   position: absolute;

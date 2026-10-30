@@ -341,10 +341,100 @@ function snapSides(q: Quad, L: Float32Array, GX: Float32Array, GY: Float32Array,
   return ok ? out : q
 }
 
+/**
+ * Pushes sides that are not on a real edge outwards to the nearest continuous edge. Shading (a
+ * vignette, a hand shadow) can split a page into pieces; a piece's box has weak sides that cut
+ * across the paper, and the true page border lies further out. Text rows also make edges but have
+ * gaps between words, so they don't pass the continuity threshold.
+ */
+function expandWeakSides(q: Quad, GX: Float32Array, GY: Float32Array, E: Float32Array, eRef: number, w: number, h: number): Quad {
+  const cx = q.reduce((s, p) => s + p.x, 0) / 4
+  const cy = q.reduce((s, p) => s + p.y, 0) / 4
+  const R = Math.round(Math.min(w, h) * 0.35)
+  const support = (a: Point, b: Point, nrm: Point) => {
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    const steps = Math.max(10, Math.round(len / 2))
+    let pos = 0
+    let neg = 0
+    let n = 0
+    for (let s = 1; s < steps; s++) {
+      const t = 0.1 + (0.8 * s) / steps
+      const x = Math.round(a.x + (b.x - a.x) * t)
+      const y = Math.round(a.y + (b.y - a.y) * t)
+      if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) continue
+      n++
+      let best = 0
+      for (let k = -1; k <= 1; k++) {
+        const i = (y + Math.round(nrm.y * k)) * w + x + Math.round(nrm.x * k)
+        if (E[i] > Math.abs(best)) best = GX[i] * nrm.x + GY[i] * nrm.y
+      }
+      if (best > eRef * 0.3) pos++
+      else if (best < -eRef * 0.3) neg++
+    }
+    return n < 6 ? 0 : Math.max(pos, neg) / n
+  }
+  const lines = q.map((a, i) => {
+    const b = q[(i + 1) % 4]
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
+    let nrm = { x: -(b.y - a.y) / len, y: (b.x - a.x) / len }
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    if ((mid.x - cx) * nrm.x + (mid.y - cy) * nrm.y < 0) nrm = { x: -nrm.x, y: -nrm.y } // outward
+    const here = support(a, b, nrm)
+    let off = 0
+    if (here < 0.7) {
+      for (let o = 2; o <= R; o++) {
+        const a2 = { x: a.x + nrm.x * o, y: a.y + nrm.y * o }
+        const b2 = { x: b.x + nrm.x * o, y: b.y + nrm.y * o }
+        if (a2.x < 0 || a2.y < 0 || a2.x > w || a2.y > h || b2.x < 0 || b2.y < 0 || b2.x > w || b2.y > h) break
+        if (support(a2, b2, nrm) >= 0.85) {
+          off = o
+          break
+        }
+      }
+    }
+    const p = { x: a.x + nrm.x * off, y: a.y + nrm.y * off }
+    return { p, d: { x: (b.x - a.x) / len, y: (b.y - a.y) / len } }
+  })
+  const out = q.map((p, i) => intersect(lines[(i + 3) % 4], lines[i]) ?? p) as Quad
+  return anglesOk(out) ? out : q
+}
+
 interface Candidate {
   quad: Quad
   boundary: Point[]
   score: number
+  /** Score without the edge term, used to re-rank after snapping. */
+  shape: number
+}
+
+/** Per side: samples on a strong image edge, samples taken, and samples lying on the frame border. */
+function sideSupport(quad: Quad, E: Float32Array, eRef: number, w: number, h: number) {
+  return quad.map((a, i) => {
+    const bq = quad[(i + 1) % 4]
+    const len = Math.hypot(bq.x - a.x, bq.y - a.y)
+    const nx = -(bq.y - a.y) / (len || 1)
+    const ny = (bq.x - a.x) / (len || 1)
+    const steps = Math.max(8, Math.round(len / 2))
+    let hits = 0
+    let onBorder = 0
+    for (let s = 1; s < steps; s++) {
+      const t = s / steps
+      const px = a.x + (bq.x - a.x) * t
+      const py = a.y + (bq.y - a.y) * t
+      if (px < 3 || py < 3 || px > w - 4 || py > h - 4) {
+        onBorder++
+        continue
+      }
+      let m = 0
+      for (let k = -2; k <= 2; k++) {
+        const xx = Math.round(px + nx * k)
+        const yy = Math.round(py + ny * k)
+        if (xx >= 0 && yy >= 0 && xx < w && yy < h) m = Math.max(m, E[yy * w + xx])
+      }
+      if (m > eRef * 0.25) hits++
+    }
+    return { hits, samples: steps - 1, onBorder }
+  })
 }
 
 /**
@@ -446,49 +536,42 @@ export function detectQuadRGBA(rgba: Uint8ClampedArray, w: number, h: number): Q
       const rect = Math.min(c.size / qa, qa / c.size)
 
       // Edge support: share of samples along the four sides that sit on a real image edge.
-      let hits = 0
-      let samples = 0
-      let onBorder = 0
-      for (let i = 0; i < 4; i++) {
-        const a = quad[i]
-        const bq = quad[(i + 1) % 4]
-        const len = Math.hypot(bq.x - a.x, bq.y - a.y)
-        const nx = -(bq.y - a.y) / (len || 1)
-        const ny = (bq.x - a.x) / (len || 1)
-        const steps = Math.max(8, Math.round(len / 2))
-        for (let s = 1; s < steps; s++) {
-          const t = s / steps
-          const px = a.x + (bq.x - a.x) * t
-          const py = a.y + (bq.y - a.y) * t
-          samples++
-          if (px < 3 || py < 3 || px > w - 4 || py > h - 4) {
-            onBorder++
-            continue
-          }
-          let m = 0
-          for (let k = -2; k <= 2; k++) {
-            const xx = Math.round(px + nx * k)
-            const yy = Math.round(py + ny * k)
-            if (xx >= 0 && yy >= 0 && xx < w && yy < h) m = Math.max(m, E[yy * w + xx])
-          }
-          if (m > eRef * 0.25) hits++
-        }
-      }
+      const sides = sideSupport(quad, E, eRef, w, h)
+      const hits = sides.reduce((a, x) => a + x.hits, 0)
+      const samples = sides.reduce((a, x) => a + x.samples, 0)
+      const onBorder = sides.reduce((a, x) => a + x.onBorder, 0)
       const edge = hits / Math.max(1, samples - onBorder)
       const borderFrac = onBorder / samples
       const area = qa / n
       const areaScore = area < 0.15 ? area / 0.15 : 1
       // Regions hugging the frame are usually the table; keep them only if their inner edges are strong.
       const touchFrac = touch / Math.max(1, boundary.length)
-      const score = rect ** 3 * (0.25 + 0.75 * edge) * (1 - 0.8 * borderFrac) * (1 - 0.5 * touchFrac) * areaScore
-      candidates.push({ quad, boundary, score })
+      const shape = rect ** 3 * (1 - 0.8 * borderFrac) * (1 - 0.5 * touchFrac) * areaScore
+      const score = shape * (0.25 + 0.75 * edge)
+      candidates.push({ quad, boundary, score, shape })
     }
   }
   if (!candidates.length) return null
   candidates.sort((a, b) => b.score - a.score)
-  const best = candidates[0]
-  if (best.score < 0.3) return null
-  const snapped = snapSides(best.quad, L, GX, GY, w, h)
+  if (candidates[0].score < 0.3) return null
+  // Several segmentations can produce plausible boxes (e.g. a vignette shrinks the bright area).
+  // Snap the leading ones to real edges and prefer the box whose weakest sides are best supported:
+  // a true page border is a continuous edge on all four sides, a truncated box cuts across the page.
+  let snapped = snapSides(candidates[0].quad, L, GX, GY, w, h)
+  let bestFinal = -1
+  for (const c of candidates.slice(0, 5)) {
+    if (c.score < candidates[0].score * 0.4) break
+    const q = snapSides(expandWeakSides(snapSides(c.quad, L, GX, GY, w, h), GX, GY, E, eRef, w, h), L, GX, GY, w, h)
+    const ratios = sideSupport(q, E, eRef, w, h)
+      .map((x) => (x.samples - x.onBorder < x.samples * 0.3 ? 0.6 : x.hits / Math.max(1, x.samples - x.onBorder)))
+      .sort((a, b) => a - b)
+    const weakest = (ratios[0] + ratios[1]) / 2
+    const final = c.shape * (0.2 + 0.8 * weakest)
+    if (final > bestFinal) {
+      bestFinal = final
+      snapped = q
+    }
+  }
   return snapped.map((p) => ({ x: Math.min(w, Math.max(0, p.x)), y: Math.min(h, Math.max(0, p.y)) })) as Quad
 }
 

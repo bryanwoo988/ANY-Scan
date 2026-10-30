@@ -20,11 +20,16 @@ export interface ScanItem {
 
 let itemId = 1
 
-export async function filesToItems(files: File[], filter: FilterName, detect = true): Promise<ScanItem[]> {
+/**
+ * `hints`: the outline the camera showed when each photo was taken (normalised 0..1). It is used
+ * when detection on the full photo finds nothing, so what the user saw is what gets cropped.
+ */
+export async function filesToItems(files: File[], filter: FilterName, detect = true, hints?: (Quad | null)[]): Promise<ScanItem[]> {
   const out: ScanItem[] = []
-  for (const f of files) {
+  for (const [i, f] of files.entries()) {
     const src = await blobToCanvas(f)
-    const q = detect ? detectDocument(src) : null
+    const hint = hints?.[i]
+    const q = (detect ? detectDocument(src) : null) ?? (hint ? (hint.map((p) => ({ x: p.x * src.width, y: p.y * src.height })) as Quad) : null)
     out.push({ id: itemId++, src, quad: q ?? fullQuad(src.width, src.height), auto: !!q, filter })
   }
   return out
@@ -83,16 +88,16 @@ function ResultPreview({ it }: { it: ScanItem }) {
   return <div className="result-box">{url ? <img src={url} alt="" /> : <div className="spinner" />}</div>
 }
 
-export function ScanScreen({ files, docId }: { files: File[]; docId?: string }) {
+export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: string; hints?: (Quad | null)[] }) {
   const { t, settings, setBusy, replace, back, pickFiles, toast } = useApp()
   const [items, setItems] = useState<ScanItem[]>([])
   const [cur, setCur] = useState(0)
   const [view, setView] = useState<'crop' | 'result'>('crop')
 
-  const load = async (fs: File[]) => {
+  const load = async (fs: File[], hs?: (Quad | null)[]) => {
     setBusy({ text: t('processing') })
     try {
-      const add = await filesToItems(fs, settings.defaultFilter)
+      const add = await filesToItems(fs, settings.defaultFilter, true, hs)
       setItems((s) => {
         setCur(s.length)
         return [...s, ...add]
@@ -111,7 +116,7 @@ export function ScanScreen({ files, docId }: { files: File[]; docId?: string }) 
     // Guard against StrictMode's double effect run adding the photos twice.
     if (started.current) return
     started.current = true
-    load(files)
+    load(files, hints)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

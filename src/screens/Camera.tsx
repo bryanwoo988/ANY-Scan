@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/ui'
 import type { TKey } from '../i18n'
 import { detectQuadRGBA } from '../lib/detect'
+import { approach, QuadTracker } from '../lib/quadTracker'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d, type Quad } from '../lib/image'
 import { decodeCanvas } from '../lib/qr'
 import { useApp } from '../state'
@@ -120,9 +121,9 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
   const [mode, setMode] = useState<CamMode>(initialMode)
   const [batch, setBatch] = useState(false)
   const [shots, setShots] = useState<File[]>([])
+  const [hints, setHints] = useState<(Quad | null)[]>([])
   const [shotUrl, setShotUrl] = useState<string>()
   const [facing, setFacing] = useState<Facing>('environment')
-  const [outline, setOutline] = useState<string | null>(null)
   const [qrText, setQrText] = useState<string | null>(null)
   const [flash, setFlash] = useState(0)
   const [menu, setMenu] = useState(false)
@@ -145,65 +146,128 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     stripRef.current?.querySelector<HTMLElement>(`[data-mode="${mode}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }, [mode])
 
-  // Live document outline (document modes) or live QR decoding (QR mode).
+  // Live QR decoding (QR mode).
   useEffect(() => {
-    if (state !== 'live') return
+    if (state !== 'live' || mode !== 'qr') return
     const small = createCanvas(1, 1)
     let alive = true
     let running = false
     const tick = async () => {
       const v = videoRef.current
-      const stage = stageRef.current
-      if (!alive || running || !v || !stage || !v.videoWidth || qrText) return
+      if (!alive || running || !v?.videoWidth || qrText) return
       running = true
       try {
-        if (mode === 'qr') {
-          const s = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight))
-          small.width = Math.round(v.videoWidth * s)
-          small.height = Math.round(v.videoHeight * s)
-          ctx2d(small).drawImage(v, 0, 0, small.width, small.height)
-          const r = await decodeCanvas(small)
-          if (r && alive) {
-            addQrHistory(r, 'scan')
-            setQrText(r)
-          }
-        } else if (DOC_MODES.includes(mode)) {
-          const s = 300 / Math.max(v.videoWidth, v.videoHeight)
-          small.width = Math.round(v.videoWidth * s)
-          small.height = Math.round(v.videoHeight * s)
-          const c = ctx2d(small)
-          c.drawImage(v, 0, 0, small.width, small.height)
-          const q: Quad | null = detectQuadRGBA(c.getImageData(0, 0, small.width, small.height).data, small.width, small.height)
-          if (!alive) return
-          if (!q) setOutline(null)
-          else {
-            // The preview uses object-fit: cover, so map frame coordinates through the same crop.
-            const W = stage.clientWidth
-            const H = stage.clientHeight
-            const k = Math.max(W / v.videoWidth, H / v.videoHeight)
-            const dx = (W - v.videoWidth * k) / 2
-            const dy = (H - v.videoHeight * k) / 2
-            setOutline(q.map((p) => `${((p.x / small.width) * v.videoWidth * k + dx).toFixed(1)},${((p.y / small.height) * v.videoHeight * k + dy).toFixed(1)}`).join(' '))
-          }
-        } else setOutline(null)
+        const s = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight))
+        small.width = Math.round(v.videoWidth * s)
+        small.height = Math.round(v.videoHeight * s)
+        ctx2d(small).drawImage(v, 0, 0, small.width, small.height)
+        const r = await decodeCanvas(small)
+        if (r && alive) {
+          addQrHistory(r, 'scan')
+          setQrText(r)
+        }
       } finally {
         running = false
       }
     }
-    const id = window.setInterval(tick, mode === 'qr' ? 200 : 350)
+    const id = window.setInterval(tick, 200)
     return () => {
       alive = false
       window.clearInterval(id)
-      setOutline(null)
     }
   }, [mode, state, qrText, videoRef])
 
+  // Live document outline. Detection runs in a worker as fast as it can; a tracker steadies the
+  // result (no flashing on a missed frame, no jumping on an outlier) and the polygon glides
+  // towards it at display rate. It turns solid green once the page has held still.
+  const trackerRef = useRef(new QuadTracker())
+  const targetRef = useRef<Quad | null>(null) // normalised 0..1, also used as a crop hint on capture
+  const polyRef = useRef<SVGPolygonElement>(null)
+  const [outlineOn, setOutlineOn] = useState(false)
+  const [locked, setLocked] = useState(false)
+  useEffect(() => {
+    if (state !== 'live' || !DOC_MODES.includes(mode)) return
+    const tracker = trackerRef.current
+    tracker.reset()
+    targetRef.current = null
+    let alive = true
+    let busy = false
+    let worker: Worker | null = null
+    try {
+      worker = new Worker(new URL('../lib/detect.worker.ts', import.meta.url), { type: 'module' })
+    } catch {
+      worker = null
+    }
+    const small = createCanvas(1, 1)
+    const accept = (q: Quad | null, w: number, h: number) => {
+      if (!alive) return
+      const r = tracker.update(q ? (q.map((p) => ({ x: p.x / w, y: p.y / h })) as Quad) : null)
+      targetRef.current = r.quad
+      setOutlineOn(!!r.quad)
+      setLocked(r.locked)
+    }
+    if (worker) worker.onmessage = (e: MessageEvent<{ quad: Quad | null; w: number; h: number }>) => {
+      busy = false
+      accept(e.data.quad, e.data.w, e.data.h)
+    }
+    const tick = () => {
+      const v = videoRef.current
+      if (!alive || busy || !v?.videoWidth) return
+      const s = 320 / Math.max(v.videoWidth, v.videoHeight)
+      small.width = Math.round(v.videoWidth * s)
+      small.height = Math.round(v.videoHeight * s)
+      const c = ctx2d(small)
+      c.drawImage(v, 0, 0, small.width, small.height)
+      const img = c.getImageData(0, 0, small.width, small.height)
+      busy = true
+      if (worker) worker.postMessage({ id: 0, buf: img.data.buffer, w: img.width, h: img.height }, [img.data.buffer])
+      else {
+        accept(detectQuadRGBA(img.data, img.width, img.height), img.width, img.height)
+        busy = false
+      }
+    }
+    const id = window.setInterval(tick, worker ? 120 : 400)
+
+    // Animate the drawn outline towards the tracked target every display frame.
+    let shown: Quad | null = null
+    let raf = 0
+    const frame = () => {
+      raf = requestAnimationFrame(frame)
+      const v = videoRef.current
+      const stage = stageRef.current
+      const poly = polyRef.current
+      const target = targetRef.current
+      if (!v?.videoWidth || !stage || !poly || !target) {
+        shown = null
+        return
+      }
+      shown = shown ? approach(shown, target, 0.25) : target
+      // The preview uses object-fit: cover, so map frame coordinates through the same crop.
+      const W = stage.clientWidth
+      const H = stage.clientHeight
+      const k = Math.max(W / v.videoWidth, H / v.videoHeight)
+      const dx = (W - v.videoWidth * k) / 2
+      const dy = (H - v.videoHeight * k) / 2
+      poly.setAttribute('points', shown.map((p) => `${(p.x * v.videoWidth * k + dx).toFixed(1)},${(p.y * v.videoHeight * k + dy).toFixed(1)}`).join(' '))
+    }
+    raf = requestAnimationFrame(frame)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+      cancelAnimationFrame(raf)
+      worker?.terminate()
+      targetRef.current = null
+      setOutlineOn(false)
+      setLocked(false)
+    }
+  }, [mode, state, videoRef])
+
   /** Sends photos (from the camera, the album or the system camera) to the tool for `mode`. */
-  const deliver = async (files: File[], m: CamMode = mode) => {
+  const deliver = async (files: File[], m: CamMode = mode, hints?: (Quad | null)[]) => {
     if (!files.length) return
     switch (m) {
       case 'scan':
-        return replace('scan', { files })
+        return replace('scan', { files, hints })
       case 'idcard':
         return replace('idcard', { files: files.slice(0, 2) })
       case 'ocr':
@@ -277,7 +341,11 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     try {
       if (mode === 'timestamp') return await shootStamped(v)
       const f = await grabFrame(v)
-      if (mode === 'scan' && batch) setShots((s) => [...s, f])
+      const hint = targetRef.current
+      if (mode === 'scan' && batch) {
+        setShots((s) => [...s, f])
+        setHints((h) => [...h, hint])
+      }
       else if (mode === 'idcard') {
         const next = [...shots, f]
         if (next.length >= 2) await deliver(next)
@@ -285,7 +353,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           setShots(next)
           toast(t('nowBackSide'))
         }
-      } else await deliver([f])
+      } else await deliver([f], mode, [hint])
     } finally {
       setBusy(false)
     }
@@ -295,6 +363,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     if (m === mode) return
     if (shots.length && !window.confirm(t('discardShots', { n: shots.length }))) return
     setShots([])
+    setHints([])
     setQrText(null)
     setMode(m)
   }
@@ -347,9 +416,9 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
         }}
       >
         <video ref={videoRef} playsInline muted autoPlay className={facing === 'user' ? 'mirror' : ''} />
-        {outline && (
-          <svg className="cam-overlay" width="100%" height="100%">
-            <polygon points={outline} />
+        {DOC_MODES.includes(mode) && (
+          <svg className={`cam-overlay ${outlineOn ? 'on' : ''} ${locked ? 'locked' : ''}`} width="100%" height="100%">
+            <polygon ref={polyRef} />
           </svg>
         )}
         {mode === 'idcard' && (
@@ -411,7 +480,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
                 <img src={lastStamped.url} alt="" />
               </button>
             ) : shots.length > 0 && mode === 'scan' ? (
-              <button className="cam-thumb" onClick={() => deliver(shots)} aria-label={t('doneN', { n: shots.length })}>
+              <button className="cam-thumb" onClick={() => deliver(shots, mode, hints)} aria-label={t('doneN', { n: shots.length })}>
                 {shotUrl && <img src={shotUrl} alt="" />}
                 <span className="cam-count">{shots.length}</span>
               </button>
@@ -433,7 +502,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           </button>
           <div className="cam-side">
             {shots.length > 0 && mode === 'scan' ? (
-              <button className="cam-done" onClick={() => deliver(shots)}>
+              <button className="cam-done" onClick={() => deliver(shots, mode, hints)}>
                 <Icon name="check" size={22} stroke={2.6} />
               </button>
             ) : (

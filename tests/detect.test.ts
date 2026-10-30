@@ -53,3 +53,23 @@ describe('orderQuad', () => {
     expect(polygonArea(q)).toBe(6400)
   })
 })
+
+describe('detectQuadRGBA under vignette (page split by shading)', () => {
+  it('still finds the whole page, not a band of it', () => {
+    const w = 270
+    const h = 360
+    const truth: [number, number][] = [[40, 45], [230, 50], [236, 316], [36, 311]]
+    const d = scene(w, h, [222, 220, 216], [245, 244, 241], truth)
+    // Darken towards the corners like a phone camera vignette.
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const r = Math.hypot((x - w / 2) / (w / 2), (y - h / 2) / (h / 2))
+        const k = 1 - 0.45 * Math.max(0, r - 0.35)
+        const i = (y * w + x) * 4
+        for (let c = 0; c < 3; c++) d[i + c] *= k
+      }
+    const q = detectQuadRGBA(d, w, h)!
+    expect(q).not.toBeNull()
+    expect(maxErr(q, truth)).toBeLessThan(8)
+  })
+})
