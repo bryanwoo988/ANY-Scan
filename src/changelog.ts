@@ -18,6 +18,7 @@ export const CHANGELOG: Release[] = [
         "What's New, update history and an \"Update available\" prompt",
         'Storage details: see how much space AnyScan uses and how much your phone allows',
         'New launch splash screen',
+        'Choose your language the first time you open AnyScan (English by default)',
       ],
       zh: [
         '智能扫描更准：浅色桌面、彩色证件、斜放的纸张和花纹背景都能更准确地找到边缘',
@@ -25,6 +26,7 @@ export const CHANGELOG: Release[] = [
         '新增"新功能介绍"、更新记录和"有新版本"提示',
         '存储空间详情：查看 AnyScan 已用多少、你的手机允许用多少',
         '全新启动画面',
+        '首次打开时可选择语言（默认英文）',
       ],
       ms: [
         'Imbas Pintar lebih bijak: lebih tepat mengesan tepi halaman di atas meja cerah, kad pengenalan berwarna, kertas senget dan latar bercorak',
@@ -32,6 +34,7 @@ export const CHANGELOG: Release[] = [
         'Apa Yang Baharu, sejarah kemas kini dan gesaan "Kemas kini tersedia"',
         'Butiran storan: lihat ruang yang digunakan AnyScan dan had telefon anda',
         'Skrin pembuka baharu',
+        'Pilih bahasa kali pertama anda membuka AnyScan (Bahasa Inggeris secara lalai)',
       ],
     },
   },

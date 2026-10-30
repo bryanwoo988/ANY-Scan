@@ -8,6 +8,7 @@ import { OcrScreen, SignScreen, TimestampScreen, WatermarkScreen } from './scree
 import { IdCardScreen, IdPhotoScreen } from './screens/Id'
 import { QrCreateScreen, QrHubScreen, QrScanScreen } from './screens/Qr'
 import type { ComponentType } from 'react'
+import { LanguagePicker } from './components/LanguagePicker'
 import { HistoryScreen, UpdateBanner, useShowWhatsNewOnUpgrade, WhatsNewSheet } from './components/SettingsParts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,7 +42,7 @@ const TABS: { id: Tab; icon: 'home' | 'docs' | 'grid' | 'settings' }[] = [
 ]
 
 export default function App() {
-  const { tab, setTab, stack, t } = useApp()
+  const { tab, setTab, stack, t, settings } = useApp()
   const { run } = useTools()
   const [whatsNew, closeWhatsNew] = useShowWhatsNewOnUpgrade()
   const top = stack[stack.length - 1]
@@ -81,7 +82,8 @@ export default function App() {
           ))}
         </nav>
       </div>
-      <WhatsNewSheet open={whatsNew} onClose={closeWhatsNew} />
+      <WhatsNewSheet open={whatsNew && settings.langChosen} onClose={closeWhatsNew} />
+      {!settings.langChosen && <LanguagePicker />}
       {top && Top && (
         <div className="route-layer" key={top.key}>
           <Top {...top.params} />

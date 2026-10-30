@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { detectLang, makeT, type Lang, type TFn } from './i18n'
+import { makeT, type Lang, type TFn } from './i18n'
 import { loadSettings, storeSettings, type Settings } from './lib/settings'
 import { listDocs, onDbChange, type DocRec } from './lib/db'
 import { applyTheme } from './themes'
@@ -52,7 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState<Busy | null>(null)
   const toastTimer = useRef<number>(0)
 
-  const lang = settings.lang ?? detectLang()
+  const lang = settings.lang
   const t = useMemo(() => makeT(lang), [lang])
 
   useEffect(() => {

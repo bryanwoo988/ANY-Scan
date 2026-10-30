@@ -156,10 +156,10 @@
       <div class="splash-foot" id="splash-foot">No ads · No sign-up · Works offline</div>
     </div>
     <script>
-      // Tagline in the user's language, before the app's own translations have loaded.
+      // Tagline in the language chosen in AnyScan (English until one is chosen), before the app's own translations load.
       try {
-        var sl = (JSON.parse(localStorage.getItem('anyscan.settings') || '{}').lang || navigator.language || 'en').toLowerCase()
-        var tx = sl.indexOf('zh') === 0 ? ['扫描一切，永久免费', '无广告 · 免注册 · 可离线使用'] : sl.indexOf('ms') === 0 || sl.indexOf('id') === 0 ? ['Imbas apa sahaja. Percuma selamanya.', 'Tiada iklan · Tiada daftar · Luar talian'] : null
+        var sl = JSON.parse(localStorage.getItem('anyscan.settings') || '{}').lang
+        var tx = sl === 'zh' ? ['扫描一切，永久免费', '无广告 · 免注册 · 可离线使用'] : sl === 'ms' ? ['Imbas apa sahaja. Percuma selamanya.', 'Tiada iklan · Tiada daftar · Luar talian'] : null
         if (tx) {
           document.getElementById('splash-tag').textContent = tx[0]
           document.getElementById('splash-foot').textContent = tx[1]

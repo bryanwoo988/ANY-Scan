@@ -1884,3 +1884,92 @@ p {
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+/* ---------------------------------------------------------------- first-launch language picker */
+.lang-pick {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--safe-top) + 48px) 20px calc(var(--safe-bottom) + 20px);
+  background: var(--bg);
+  overflow-y: auto;
+  animation: fade 0.25s;
+}
+.lang-pick-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.lang-pick-head img {
+  border-radius: 17px;
+  box-shadow: var(--shadow);
+  margin-bottom: 8px;
+}
+.lang-pick-head h1 {
+  font-size: 26px;
+  font-weight: 750;
+}
+.lang-pick-head p {
+  color: var(--muted);
+  font-size: 16px;
+}
+.lang-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 36px 0 24px;
+}
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  text-align: left;
+}
+.lang-option.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+}
+.lang-option-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lang-option-text strong {
+  font-size: 18px;
+}
+.lang-option-text span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.lang-radio {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.lang-option.on .lang-radio {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.lang-pick-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}

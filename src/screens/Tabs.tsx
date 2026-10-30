@@ -263,7 +263,7 @@ export function SettingsTab() {
         <button className="setting" onClick={() => setSheet('lang')}>
           <Icon name="globe" />
           <span>{t('language')}</span>
-          <span className="setting-value">{settings.lang ? LANGS.find((l) => l.code === lang)?.name : `${t('followSystem')} (${LANGS.find((l) => l.code === lang)?.name})`}</span>
+          <span className="setting-value">{LANGS.find((l) => l.code === lang)?.name}</span>
           <Icon name="chevron" size={18} />
         </button>
         <button className="setting" onClick={() => setSheet('theme')}>
@@ -382,22 +382,12 @@ export function SettingsTab() {
 
       <Sheet open={sheet === 'lang'} onClose={() => setSheet(null)} title={t('language')}>
         <div className="option-list">
-          <button
-            className={`option ${settings.lang === null ? 'on' : ''}`}
-            onClick={() => {
-              setSettings({ lang: null })
-              setSheet(null)
-            }}
-          >
-            {t('followSystem')}
-            {settings.lang === null && <Icon name="check" />}
-          </button>
           {LANGS.map((l) => (
             <button
               key={l.code}
               className={`option ${settings.lang === l.code ? 'on' : ''}`}
               onClick={() => {
-                setSettings({ lang: l.code as Lang })
+                setSettings({ lang: l.code as Lang, langChosen: true })
                 setSheet(null)
               }}
             >
