@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1fd1a5"/>
+      <stop offset="1" stop-color="#2f6bff"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+  <!-- scan corner brackets -->
+  <g fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 168V120a24 24 0 0 1 24-24h48"/>
+    <path d="M344 96h48a24 24 0 0 1 24 24v48"/>
+    <path d="M416 344v48a24 24 0 0 1-24 24h-48"/>
+    <path d="M168 416h-48a24 24 0 0 1-24-24v-48"/>
+  </g>
+  <!-- the "A" -->
+  <path d="M256 150 L338 362 H296 L280 318 H232 L216 362 H174 Z M244 284 H268 L256 250 Z" fill="#ffffff"/>
+  <!-- scan beam -->
+  <rect x="120" y="248" width="272" height="14" rx="7" fill="url(#beam)" opacity=".95"/>
+</svg>

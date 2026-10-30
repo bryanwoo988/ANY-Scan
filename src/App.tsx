@@ -1,0 +1,81 @@
+import { Icon } from './components/Icon'
+import { useApp, type Tab } from './state'
+import { useTools } from './tools'
+import { DocsTab, HomeTab, MeTab, ToolsTab } from './screens/Tabs'
+import { ScanScreen } from './screens/Scan'
+import { DocScreen, ExportScreen, MergeScreen, PageScreen, PagesScreen, PickImportScreen, PickScreen, PrintScreen } from './screens/Doc'
+import { OcrScreen, SignScreen, TimestampScreen, WatermarkScreen } from './screens/Edit'
+import { IdCardScreen, IdPhotoScreen } from './screens/Id'
+import { QrCreateScreen, QrHubScreen, QrScanScreen } from './screens/Qr'
+import type { ComponentType } from 'react'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ROUTES: Record<string, ComponentType<any>> = {
+  scan: ScanScreen,
+  doc: DocScreen,
+  page: PageScreen,
+  export: ExportScreen,
+  pick: PickScreen,
+  pickImport: PickImportScreen,
+  merge: MergeScreen,
+  pages: PagesScreen,
+  print: PrintScreen,
+  ocr: OcrScreen,
+  sign: SignScreen,
+  watermark: WatermarkScreen,
+  timestamp: TimestampScreen,
+  idcard: IdCardScreen,
+  idphoto: IdPhotoScreen,
+  qr: QrHubScreen,
+  qrscan: QrScanScreen,
+  qrcreate: QrCreateScreen,
+}
+
+const TABS: { id: Tab; icon: 'home' | 'docs' | 'grid' | 'user' }[] = [
+  { id: 'home', icon: 'home' },
+  { id: 'docs', icon: 'docs' },
+  { id: 'tools', icon: 'grid' },
+  { id: 'me', icon: 'user' },
+]
+
+export default function App() {
+  const { tab, setTab, stack, t } = useApp()
+  const { run } = useTools()
+  const top = stack[stack.length - 1]
+  const Top = top ? ROUTES[top.name] : null
+
+  return (
+    <div className="app">
+      <div className="tabs-layer" hidden={!!top} aria-hidden={!!top}>
+        <div className="tab-scroll">
+          {tab === 'home' && <HomeTab />}
+          {tab === 'docs' && <DocsTab />}
+          {tab === 'tools' && <ToolsTab />}
+          {tab === 'me' && <MeTab />}
+        </div>
+        <nav className="tabbar">
+          {TABS.slice(0, 2).map((x) => (
+            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)}>
+              <Icon name={x.icon} />
+              <span>{t(`tab.${x.id}`)}</span>
+            </button>
+          ))}
+          <button className="fab" onClick={() => run('smartScan')} aria-label={t('tool.smartScan')}>
+            <Icon name="camera" size={30} />
+          </button>
+          {TABS.slice(2).map((x) => (
+            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)}>
+              <Icon name={x.icon} />
+              <span>{t(`tab.${x.id}`)}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+      {top && Top && (
+        <div className="route-layer" key={top.key}>
+          <Top {...top.params} />
+        </div>
+      )}
+    </div>
+  )
+}
