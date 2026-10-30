@@ -14,6 +14,19 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./icons/logo.svg" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <script>
+      // Apply the theme before first paint to avoid a flash (same approach as the Bible app).
+      try {
+        var s = JSON.parse(localStorage.getItem('anyscan.settings') || '{}')
+        var legacy = { black: 'dark', ocean: 'dark', forest: 'dark', sakura: 'light', sunset: 'light' }
+        var mode = legacy[s.theme] || s.theme
+        var dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        var looks = dark ? ['midnight', 'oled', 'slate', 'grape'] : ['classic', 'paper', 'mint', 'lavender']
+        var look = dark ? s.darkLook : s.lightLook
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.documentElement.dataset.palette = looks.indexOf(look) >= 0 ? look : looks[0]
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

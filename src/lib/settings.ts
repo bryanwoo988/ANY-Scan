@@ -1,22 +1,25 @@
 import type { FilterName } from './image'
 import type { PageSize, Quality } from './export'
 import type { Lang } from '../i18n'
-import type { ThemeId } from '../themes'
+import { migrateTheme, type DarkLook, type LightLook, type ThemeMode } from '../themes'
 
 export interface Settings {
   lang: Lang | null // null = follow the phone's language
-  theme: ThemeId
+  theme: ThemeMode
+  lightLook: LightLook
+  darkLook: DarkLook
   pageSize: PageSize
   quality: Quality
   defaultFilter: FilterName
 }
 
 const KEY = 'anyscan.settings'
-export const DEFAULT_SETTINGS: Settings = { lang: null, theme: 'system', pageSize: 'auto', quality: 'high', defaultFilter: 'magic' }
+export const DEFAULT_SETTINGS: Settings = { lang: null, theme: 'auto', lightLook: 'classic', darkLook: 'midnight', pageSize: 'auto', quality: 'high', defaultFilter: 'magic' }
 
 export function loadSettings(): Settings {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
+    const raw = JSON.parse(localStorage.getItem(KEY) || '{}') as Record<string, unknown>
+    return { ...DEFAULT_SETTINGS, ...raw, ...migrateTheme(raw) }
   } catch {
     return DEFAULT_SETTINGS
   }

@@ -1,26 +1,34 @@
 import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
-import { Screen, Sheet } from './ui'
+import { Screen, Segmented, Sheet } from './ui'
 import { APP_VERSION, CHANGELOG, compareVersions, type Release } from '../changelog'
 import { formatBytes } from '../lib/image'
 import { loadJSON, saveJSON } from '../lib/settings'
 import { applyUpdate, checkForUpdate, onUpdateReady } from '../lib/update'
 import { useApp, useDocs } from '../state'
-import { resolveTheme, THEME_ORDER, type ThemeId } from '../themes'
+import { DARK_LOOKS, LIGHT_LOOKS, LOOK_COLOURS, type Look } from '../themes'
 
-// ---------------------------------------------------------------- themes
+// ---------------------------------------------------------------- appearance
 
-function ThemePreview({ id }: { id: ThemeId }) {
-  const v = resolveTheme(id)
-  const half = id === 'system'
+function Looks<T extends Look>({ looks, current, onPick }: { looks: readonly T[]; current: T; onPick: (l: T) => void }) {
+  const { t } = useApp()
   return (
-    <span className="theme-prev" style={{ background: half ? 'linear-gradient(135deg, #f4f6f9 50%, #0e1116 50%)' : v.bg, borderColor: v.line }}>
-      <span className="theme-prev-card" style={{ background: half ? 'rgba(127,127,127,.35)' : v.card2 }} />
-      <span className="theme-prev-card short" style={{ background: half ? 'rgba(127,127,127,.35)' : v.card2 }} />
-      <span className="theme-prev-bar" style={{ background: half ? 'rgba(127,127,127,.25)' : v.bg2 }}>
-        <span className="theme-prev-fab" style={{ background: `linear-gradient(135deg, ${v.accent}, ${v.accent2})` }} />
-      </span>
-    </span>
+    <div className="looks">
+      {looks.map((l) => {
+        const [bg, card, accent] = LOOK_COLOURS[l]
+        return (
+          <button key={l} className={`look ${l === current ? 'on' : ''}`} aria-pressed={l === current} onClick={() => onPick(l)}>
+            <span className="look-prev" style={{ background: bg }}>
+              <span className="look-card" style={{ background: card }}>
+                <i style={{ background: accent }} />
+                <b />
+              </span>
+            </span>
+            <span className="look-name">{t(`look.${l}`)}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -28,23 +36,29 @@ export function ThemeSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const { t, settings, setSettings } = useApp()
   return (
     <Sheet open={open} onClose={onClose} title={t('theme')}>
-      <div className="theme-grid">
-        {THEME_ORDER.map((id) => (
-          <button key={id} className={`theme-tile ${settings.theme === id ? 'on' : ''}`} onClick={() => setSettings({ theme: id })} aria-pressed={settings.theme === id}>
-            <ThemePreview id={id} />
-            <span className="theme-name">
-              {settings.theme === id && <Icon name="check" size={14} stroke={3} />} {t(`themeName.${id}`)}
-            </span>
-          </button>
-        ))}
-      </div>
+      <Segmented
+        value={settings.theme}
+        onChange={(v) => setSettings({ theme: v })}
+        options={[
+          { value: 'auto', label: t('themeAuto') },
+          { value: 'light', label: t('light') },
+          { value: 'dark', label: t('dark') },
+        ]}
+      />
+      <p className="theme-note">{t('themeNote')}</p>
+      <div className="looks-title">{t('lightLooks')}</div>
+      {/* Picking a look on the other side while the mode is fixed switches to that side, so the tap is visible. */}
+      <Looks looks={LIGHT_LOOKS} current={settings.lightLook} onPick={(l) => setSettings({ lightLook: l, ...(settings.theme === 'dark' ? { theme: 'light' as const } : {}) })} />
+      <div className="looks-title">{t('darkLooks')}</div>
+      <Looks looks={DARK_LOOKS} current={settings.darkLook} onPick={(l) => setSettings({ darkLook: l, ...(settings.theme === 'light' ? { theme: 'dark' as const } : {}) })} />
+      <div style={{ height: 12 }} />
     </Sheet>
   )
 }
 
-export function ThemeSwatch({ id }: { id: ThemeId }) {
-  const v = resolveTheme(id)
-  return <span className="theme-dot" style={{ background: `linear-gradient(135deg, ${v.bg} 50%, ${v.accent} 50%)`, borderColor: v.line }} />
+export function ThemeSwatch({ look }: { look: Look }) {
+  const [bg, , accent] = LOOK_COLOURS[look]
+  return <span className="theme-dot" style={{ background: `linear-gradient(135deg, ${bg} 50%, ${accent} 50%)` }} />
 }
 
 // ---------------------------------------------------------------- what's new / history

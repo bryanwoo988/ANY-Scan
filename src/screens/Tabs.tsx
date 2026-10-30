@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { ShareAppCard } from '../components/ShareApp'
 import { CheckUpdateRow, StorageSheet, ThemeSheet, ThemeSwatch, WhatsNewSheet } from '../components/SettingsParts'
 import { APP_VERSION } from '../changelog'
+import { activeLook } from '../themes'
 import { DocRow, Empty, Segmented, Sheet, TextDialog, ToolTile } from '../components/ui'
 import { LANGS, makeT, type Lang } from '../i18n'
 import { clearAll, deleteDocs, renameDoc, type DocRec } from '../lib/db'
@@ -269,7 +270,7 @@ export function SettingsTab() {
           <Icon name="moon" />
           <span>{t('theme')}</span>
           <span className="setting-value row gap-sm">
-            <ThemeSwatch id={settings.theme} /> {t(`themeName.${settings.theme}`)}
+            <ThemeSwatch look={activeLook(settings)} /> {settings.theme === 'auto' ? t('themeAuto') : t(settings.theme)} · {t(`look.${activeLook(settings)}`)}
           </span>
           <Icon name="chevron" size={18} />
         </button>

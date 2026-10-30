@@ -1,11 +1,12 @@
 :root {
-  --bg: #0e1116;
-  --bg-2: #161a21;
-  --card: #1c212a;
-  --card-2: #252b36;
-  --line: #2b3240;
-  --text: #f1f4f8;
-  --muted: #8f99a8;
+  /* Midnight (default dark look) */
+  --bg: #0e131f;
+  --bg-2: #151c2b;
+  --card: #151c2b;
+  --card-2: #1b2436;
+  --line: #263149;
+  --text: #e4eaf6;
+  --muted: #8b97ae;
   --accent: #2fbf8f;
   --accent-2: #2f6bff;
   --accent-ink: #04150f;
@@ -19,33 +20,61 @@
   color-scheme: dark;
 }
 
+/* Appearance: data-theme (light|dark) picks the side, data-palette the look — same scheme as the
+   Bible and Machine Learning apps. Classic and Midnight are the bases; the others override them. */
+:root[data-theme='light'] {
+  --bg: #f6f8fc;
+  --bg-2: #ffffff;
+  --card: #ffffff;
+  --card-2: #edf2fb;
+  --line: #dde4f0;
+  --text: #1e2638;
+  --muted: #687389;
+  --accent: #13a879;
+  --accent-2: #2f6bff;
+  --accent-ink: #ffffff;
+  --shadow: 0 10px 30px rgba(20, 30, 50, 0.12);
+  color-scheme: light;
+}
 @media (prefers-color-scheme: light) {
+  /* Before the app has applied a look (no JS yet). */
   :root:not([data-theme]) {
-    --bg: #f4f6f9;
+    --bg: #f6f8fc;
     --bg-2: #ffffff;
     --card: #ffffff;
-    --card-2: #eef1f5;
-    --line: #e2e6ec;
-    --text: #12161c;
-    --muted: #677285;
+    --card-2: #edf2fb;
+    --line: #dde4f0;
+    --text: #1e2638;
+    --muted: #687389;
     --accent: #13a879;
     --accent-ink: #ffffff;
     --shadow: 0 10px 30px rgba(20, 30, 50, 0.12);
     color-scheme: light;
   }
 }
-:root[data-theme='light'] {
-  --bg: #f4f6f9;
-  --bg-2: #ffffff;
-  --card: #ffffff;
-  --card-2: #eef1f5;
-  --line: #e2e6ec;
-  --text: #12161c;
-  --muted: #677285;
-  --accent: #13a879;
-  --accent-ink: #ffffff;
-  --shadow: 0 10px 30px rgba(20, 30, 50, 0.12);
-  color-scheme: light;
+:root[data-theme='light'][data-palette='paper'] {
+  --bg: #f6f1e7; --bg-2: #fffdf8; --card: #fffdf8; --card-2: #efe7d8; --line: #e3d9c6;
+  --text: #2b2620; --muted: #6e6455; --accent: #a8571a; --accent-2: #d08a3a;
+}
+:root[data-theme='light'][data-palette='mint'] {
+  --bg: #eef7f3; --bg-2: #ffffff; --card: #ffffff; --card-2: #e0f1ea; --line: #cde4da;
+  --text: #15302a; --muted: #557069; --accent: #0b7f62; --accent-2: #22b8cf;
+}
+:root[data-theme='light'][data-palette='lavender'] {
+  --bg: #f5f3fc; --bg-2: #ffffff; --card: #ffffff; --card-2: #ebe7f8; --line: #dcd6f0;
+  --text: #231f3a; --muted: #625c80; --accent: #5b45c4; --accent-2: #8b6bff;
+}
+:root[data-theme='dark'][data-palette='oled'] {
+  --bg: #000000; --bg-2: #0d0d0d; --card: #0d0d0d; --card-2: #1a1a1a; --line: #262626;
+  --text: #ededed; --muted: #9b9b9b;
+}
+:root[data-theme='dark'][data-palette='slate'] {
+  --bg: #23272f; --bg-2: #2c313b; --card: #2c313b; --card-2: #363c48; --line: #404857;
+  --text: #e2e6ec; --muted: #a0aab6; --accent: #8cbcea; --accent-2: #5b8fd6; --accent-ink: #0e131f;
+}
+:root[data-theme='dark'][data-palette='grape'] {
+  --bg: #17121f; --bg-2: #221a2e; --card: #221a2e; --card-2: #2d243c; --line: #3a2f4d;
+  --text: #ede7f8; --muted: #ab9fc2; --accent: #b89dff; --accent-2: #7b5bd6; --accent-ink: #17121f;
 }
 
 * {
@@ -1668,74 +1697,74 @@ p {
   color: var(--accent);
 }
 
-/* themes */
-.theme-grid {
+/* appearance: mode + looks (same layout as the Bible / Machine Learning apps) */
+.theme-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.looks-title {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.looks {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px 10px;
-  padding-bottom: 8px;
-}
-.theme-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  font-size: 12px;
-  min-width: 0;
 }
-.theme-prev {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 9 / 16;
-  border-radius: 14px;
-  border: 2px solid;
-  overflow: hidden;
+.look {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 10px 7px;
+  padding: 5px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
 }
-.theme-tile.on .theme-prev {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+.look.on {
+  border-color: var(--accent);
 }
-.theme-prev-card {
-  height: 14px;
-  border-radius: 4px;
+.look-prev {
+  display: block;
+  height: 56px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(127, 127, 127, 0.28);
 }
-.theme-prev-card.short {
-  width: 60%;
+.look-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 100%;
+  padding: 6px;
+  border-radius: 6px;
 }
-.theme-prev-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 18%;
-  display: grid;
-  place-items: center;
+.look-card i {
+  display: block;
+  width: 45%;
+  height: 6px;
+  border-radius: 3px;
 }
-.theme-prev-fab {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  margin-top: -14px;
+.look-card b {
+  display: block;
+  width: 75%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(127, 127, 127, 0.35);
 }
-.theme-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-.theme-tile.on .theme-name {
-  color: var(--accent);
-  font-weight: 650;
+.look-name {
+  text-align: center;
+  line-height: 1.25;
 }
 .theme-dot {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 1px solid;
+  border: 1px solid rgba(127, 127, 127, 0.4);
   display: inline-block;
 }
 

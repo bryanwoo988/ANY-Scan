@@ -60,13 +60,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [lang])
 
   useEffect(() => {
-    applyTheme(settings.theme)
+    const prefs = { theme: settings.theme, lightLook: settings.lightLook, darkLook: settings.darkLook }
+    applyTheme(prefs)
     // Keep the status bar colour right when the phone flips light/dark in "system" mode.
     const mq = matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => applyTheme(settings.theme)
+    const onChange = () => applyTheme(prefs)
     mq.addEventListener?.('change', onChange)
     return () => mq.removeEventListener?.('change', onChange)
-  }, [settings.theme])
+  }, [settings.theme, settings.lightLook, settings.darkLook])
 
   const setSettings = useCallback((p: Partial<Settings>) => {
     setS((s) => {
