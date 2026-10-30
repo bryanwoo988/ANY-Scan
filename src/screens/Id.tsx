@@ -3,7 +3,8 @@ import { CropEditor } from '../components/CropEditor'
 import { Icon } from '../components/Icon'
 import { Empty, Screen } from '../components/ui'
 import { createDoc, defaultDocName } from '../lib/db'
-import { applyFilter, blobToCanvas, canvasToBlob, createCanvas, ctx2d, detectDocument, fullQuad, rotateCanvas, rotateQuad, warpPerspective, type Quad } from '../lib/image'
+import { applyFilter, blobToCanvas, canvasToBlob, createCanvas, ctx2d, fullQuad, rotateCanvas, rotateQuad, warpPerspective, type Quad } from '../lib/image'
+import { detectDocument } from '../lib/detect'
 import { useApp } from '../state'
 
 // ---------------------------------------------------------------- ID card (front + back on one A4 page)

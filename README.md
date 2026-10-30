@@ -46,7 +46,7 @@ Every push to `main` runs `.github/workflows/deploy.yml`, which tests, builds an
 
 ## Known limits
 
-- Auto edge detection is a simple brightness-based detector. It works best with light paper on a darker surface. If it misses, drag the corners or tap **Full**.
+- Auto edge detection (`src/lib/detect.ts`) combines several colour/brightness segmentations with edge snapping. It handles light tables, coloured cards, rotated paper and patterned backgrounds, but a page whose edge is nearly invisible (e.g. a black header on a black table) can still need a manual corner drag.
 - OCR runs on the phone. The first use downloads the engine (~4 MB) and each language (1–3 MB) from the app's own site, not a third-party CDN; after that it works offline. Accuracy depends on photo quality, and handwriting isn't supported.
 - ID Photo crops and sizes the photo. It doesn't remove or replace the background, so shoot against a plain light wall.
 - Edits such as signatures and watermarks are baked into the page image. Signatures are drawn images, not certified digital signatures.

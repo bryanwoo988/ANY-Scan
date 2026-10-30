@@ -1,0 +1,78 @@
+// Release notes shown in Settings › What's New and Update history. Newest first.
+import type { Lang } from './i18n'
+
+export interface Release {
+  version: string
+  date: string // YYYY-MM-DD
+  notes: Record<Lang, string[]>
+}
+
+export const CHANGELOG: Release[] = [
+  {
+    version: '1.2.0',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'Smarter Smart Scan: much better at finding the page edges on light tables, coloured ID cards, rotated paper and patterned backgrounds',
+        '8 appearance themes: System, Light, Dark, Black, Ocean, Forest, Sakura and Sunset',
+        "What's New, update history and an \"Update available\" prompt",
+        'Storage details: see how much space AnyScan uses and how much your phone allows',
+      ],
+      zh: [
+        '智能扫描更准：浅色桌面、彩色证件、斜放的纸张和花纹背景都能更准确地找到边缘',
+        '8 种外观主题：跟随系统、浅色、深色、纯黑、海洋、森林、樱花、日落',
+        '新增"新功能介绍"、更新记录和"有新版本"提示',
+        '存储空间详情：查看 AnyScan 已用多少、你的手机允许用多少',
+      ],
+      ms: [
+        'Imbas Pintar lebih bijak: lebih tepat mengesan tepi halaman di atas meja cerah, kad pengenalan berwarna, kertas senget dan latar bercorak',
+        '8 tema paparan: Sistem, Cerah, Gelap, Hitam, Lautan, Hutan, Sakura dan Senja',
+        'Apa Yang Baharu, sejarah kemas kini dan gesaan "Kemas kini tersedia"',
+        'Butiran storan: lihat ruang yang digunakan AnyScan dan had telefon anda',
+      ],
+    },
+  },
+  {
+    version: '1.1.0',
+    date: '2026-10-30',
+    notes: {
+      en: ['Redesigned bottom tab bar with evenly spaced tabs', '"Me" is now "Settings"', 'Share AnyScan with friends using a QR code or link'],
+      zh: ['重新设计底部导航栏，按钮间距平均', '"我的"改为"设置"', '可用二维码或链接把 AnyScan 分享给朋友'],
+      ms: ['Bar tab bawah direka semula dengan jarak sekata', '"Saya" kini "Tetapan"', 'Kongsi AnyScan dengan rakan melalui kod QR atau pautan'],
+    },
+  },
+  {
+    version: '1.0.0',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'First release: Smart Scan with edge detection and filters, ID Card, ID Photo, Timestamp',
+        'Extract Text (OCR) in English, Malay and Chinese, export to Word',
+        'Scan and create QR codes',
+        'PDF tools: password lock, compress, merge, extract, reorder, sign, watermark, print',
+        'English, 简体中文 and Bahasa Melayu',
+      ],
+      zh: ['首个版本：智能扫描（自动找边、滤镜）、证件扫描、证件照、时间水印', '提取文字（英文、马来文、中文），可转 Word', '扫描和生成二维码', 'PDF 工具：加密码、压缩、合并、提取、排序、签名、水印、打印', '支持 English、简体中文、Bahasa Melayu'],
+      ms: [
+        'Keluaran pertama: Imbas Pintar dengan pengesanan tepi dan penapis, Kad Pengenalan, Foto Pasport, Cap Masa',
+        'Ekstrak Teks (OCR) dalam bahasa Inggeris, Melayu dan Cina, eksport ke Word',
+        'Imbas dan cipta kod QR',
+        'Alatan PDF: kunci kata laluan, mampat, gabung, ekstrak, susun, tandatangan, tera air, cetak',
+        'English, 简体中文 dan Bahasa Melayu',
+      ],
+    },
+  },
+]
+
+export const APP_VERSION = __APP_VERSION__
+
+/** Compares dotted versions numerically: negative if a < b. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (d) return d
+  }
+  return 0
+}

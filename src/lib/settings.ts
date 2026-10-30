@@ -1,10 +1,11 @@
 import type { FilterName } from './image'
 import type { PageSize, Quality } from './export'
 import type { Lang } from '../i18n'
+import type { ThemeId } from '../themes'
 
 export interface Settings {
   lang: Lang | null // null = follow the phone's language
-  theme: 'system' | 'dark' | 'light'
+  theme: ThemeId
   pageSize: PageSize
   quality: Quality
   defaultFilter: FilterName

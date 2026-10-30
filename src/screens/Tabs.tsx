@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { ShareAppCard } from '../components/ShareApp'
+import { CheckUpdateRow, StorageSheet, ThemeSheet, ThemeSwatch, WhatsNewSheet } from '../components/SettingsParts'
+import { APP_VERSION } from '../changelog'
 import { DocRow, Empty, Segmented, Sheet, TextDialog, ToolTile } from '../components/ui'
 import { LANGS, makeT, type Lang } from '../i18n'
 import { clearAll, deleteDocs, renameDoc, type DocRec } from '../lib/db'
@@ -239,9 +241,9 @@ export function ToolsTab() {
 }
 
 export function SettingsTab() {
-  const { t, settings, setSettings, lang, toast } = useApp()
+  const { t, settings, setSettings, lang, toast, push } = useApp()
   const [usage, setUsage] = useState<string>('')
-  const [sheet, setSheet] = useState<null | 'lang'>(null)
+  const [sheet, setSheet] = useState<null | 'lang' | 'theme' | 'storage' | 'whatsnew'>(null)
   const docs = useDocs()
 
   useEffect(() => {
@@ -255,6 +257,7 @@ export function SettingsTab() {
       </div>
       <ShareAppCard />
 
+      <h2 className="settings-label">{t('general')}</h2>
       <div className="settings">
         <button className="setting" onClick={() => setSheet('lang')}>
           <Icon name="globe" />
@@ -262,21 +265,18 @@ export function SettingsTab() {
           <span className="setting-value">{settings.lang ? LANGS.find((l) => l.code === lang)?.name : `${t('followSystem')} (${LANGS.find((l) => l.code === lang)?.name})`}</span>
           <Icon name="chevron" size={18} />
         </button>
-        <div className="setting col">
-          <div className="setting-row">
-            <Icon name="moon" />
-            <span>{t('theme')}</span>
-          </div>
-          <Segmented
-            value={settings.theme}
-            onChange={(v) => setSettings({ theme: v })}
-            options={[
-              { value: 'system', label: t('followSystem') },
-              { value: 'dark', label: t('dark') },
-              { value: 'light', label: t('light') },
-            ]}
-          />
-        </div>
+        <button className="setting" onClick={() => setSheet('theme')}>
+          <Icon name="moon" />
+          <span>{t('theme')}</span>
+          <span className="setting-value row gap-sm">
+            <ThemeSwatch id={settings.theme} /> {t(`themeName.${settings.theme}`)}
+          </span>
+          <Icon name="chevron" size={18} />
+        </button>
+      </div>
+
+      <h2 className="settings-label">{t('scanAndPdf')}</h2>
+      <div className="settings">
         <div className="setting col">
           <div className="setting-row">
             <Icon name="pagesize" />
@@ -320,13 +320,18 @@ export function SettingsTab() {
             ))}
           </div>
         </div>
-        <div className="setting">
+      </div>
+
+      <h2 className="settings-label">{t('storage')}</h2>
+      <div className="settings">
+        <button className="setting" onClick={() => setSheet('storage')}>
           <Icon name="storage" />
-          <span>{t('storage')}</span>
+          <span>{t('storageUsed')}</span>
           <span className="setting-value">
             {t('nDocs', { n: docs?.length ?? 0 })} · {usage}
           </span>
-        </div>
+          <Icon name="chevron" size={18} />
+        </button>
         <button
           className="setting danger-text"
           onClick={async () => {
@@ -339,11 +344,39 @@ export function SettingsTab() {
           <span>{t('clearAll')}</span>
         </button>
       </div>
-      <div className="about pad muted">
-        <p>
-          <Icon name="lock" size={16} /> {t('privacyNote')}
-        </p>
-        <p>AnyScan v1.1.0 · {t('tagline')}</p>
+
+      <h2 className="settings-label">{t('about')}</h2>
+      <div className="settings">
+        <button className="setting" onClick={() => setSheet('whatsnew')}>
+          <Icon name="quality" />
+          <span>{t('whatsNew')}</span>
+          <span className="setting-value">v{APP_VERSION}</span>
+          <Icon name="chevron" size={18} />
+        </button>
+        <button className="setting" onClick={() => push('history')}>
+          <Icon name="clock" />
+          <span>{t('updateHistory')}</span>
+          <Icon name="chevron" size={18} />
+        </button>
+        <CheckUpdateRow />
+      </div>
+
+      <div className="free-box">
+        <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} width={44} height={44} alt="" />
+        <div className="free-title">{t('freeTitle')}</div>
+        <ul className="free-list">
+          <li>
+            <Icon name="check" size={16} stroke={2.6} /> {t('free1')}
+          </li>
+          <li>
+            <Icon name="check" size={16} stroke={2.6} /> {t('free2')}
+          </li>
+          <li>
+            <Icon name="check" size={16} stroke={2.6} /> {t('free3')}
+          </li>
+        </ul>
+        <p className="muted small">{t('privacyNote')}</p>
+        <p className="muted small">AnyScan v{APP_VERSION}</p>
       </div>
 
       <Sheet open={sheet === 'lang'} onClose={() => setSheet(null)} title={t('language')}>
@@ -373,6 +406,9 @@ export function SettingsTab() {
           ))}
         </div>
       </Sheet>
+      <ThemeSheet open={sheet === 'theme'} onClose={() => setSheet(null)} />
+      <StorageSheet open={sheet === 'storage'} onClose={() => setSheet(null)} />
+      <WhatsNewSheet open={sheet === 'whatsnew'} onClose={() => setSheet(null)} />
     </div>
   )
 }

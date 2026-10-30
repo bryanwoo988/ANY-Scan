@@ -102,7 +102,16 @@ export async function createDoc(name: string, pages: NewPage[]): Promise<DocRec>
   tx.objectStore('docs').put(doc)
   await txDone(tx)
   changed()
+  requestPersistence()
   return doc
+}
+
+let persistAsked = false
+/** Asks the browser not to clear AnyScan's storage automatically (granted more readily for Home Screen apps). */
+function requestPersistence() {
+  if (persistAsked) return
+  persistAsked = true
+  navigator.storage?.persist?.().catch(() => {})
 }
 
 export async function saveDoc(doc: DocRec): Promise<void> {

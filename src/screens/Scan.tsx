@@ -4,9 +4,10 @@ import { Icon } from '../components/Icon'
 import { Screen } from '../components/ui'
 import { addPages, createDoc, defaultDocName, type NewPage } from '../lib/db'
 import {
-  applyFilter, blobToCanvas, canvasToBlob, detectDocument, FILTERS, fullQuad, rotateCanvas, rotateQuad,
+  applyFilter, blobToCanvas, canvasToBlob, FILTERS, fullQuad, rotateCanvas, rotateQuad,
   warpPerspective, type FilterName, type Quad,
 } from '../lib/image'
+import { detectDocument } from '../lib/detect'
 import { useApp } from '../state'
 
 export interface ScanItem {

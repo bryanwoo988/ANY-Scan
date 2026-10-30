@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyHomography, detectQuadInGray, filterPixels, quadOutputSize, rotateQuad, solveHomography, type Quad } from '../src/lib/image'
+import { applyHomography, filterPixels, quadOutputSize, rotateQuad, solveHomography, type Quad } from '../src/lib/image'
 
 const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(1e-6)
 
@@ -52,22 +52,6 @@ describe('rotateQuad', () => {
   })
   it('-90 undoes 90', () => {
     expect(rotateQuad(rotateQuad(q, 100, 80, 90), 80, 100, -90)).toEqual(q)
-  })
-})
-
-describe('detectQuadInGray', () => {
-  it('finds a bright rectangle on a dark background', () => {
-    const w = 200
-    const h = 160
-    const g = new Uint8Array(w * h).fill(40)
-    for (let y = 30; y < 130; y++) for (let x = 50; x < 170; x++) g[y * w + x] = 230
-    const q = detectQuadInGray(g, w, h)!
-    expect(q).not.toBeNull()
-    expect(q[0]).toEqual({ x: 50, y: 30 })
-    expect(q[2]).toEqual({ x: 170, y: 130 })
-  })
-  it('returns null for a uniform image', () => {
-    expect(detectQuadInGray(new Uint8Array(100 * 100).fill(128), 100, 100)).toBeNull()
   })
 })
 

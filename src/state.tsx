@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { detectLang, makeT, type Lang, type TFn } from './i18n'
 import { loadSettings, storeSettings, type Settings } from './lib/settings'
 import { listDocs, onDbChange, type DocRec } from './lib/db'
+import { applyTheme } from './themes'
 
 export type Tab = 'home' | 'docs' | 'tools' | 'settings'
 
@@ -59,9 +60,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [lang])
 
   useEffect(() => {
-    const root = document.documentElement
-    if (settings.theme === 'system') root.removeAttribute('data-theme')
-    else root.setAttribute('data-theme', settings.theme)
+    applyTheme(settings.theme)
+    // Keep the status bar colour right when the phone flips light/dark in "system" mode.
+    const mq = matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyTheme(settings.theme)
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
   }, [settings.theme])
 
   const setSettings = useCallback((p: Partial<Settings>) => {
