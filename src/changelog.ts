@@ -10,7 +10,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.7.1',
+    notes: {
+      en: ['Fixed: on some iPhones (e.g. iPhone 17 Pro Max) the page was taller than the screen and the bottom tab bar was only visible after scrolling down'],
+      zh: ['修复：部分 iPhone（例如 iPhone 17 Pro Max）页面比屏幕高，底部导航栏要往下滑才看得到'],
+      ms: ['Dibaiki: pada sesetengah iPhone (cth. iPhone 17 Pro Max) halaman lebih tinggi daripada skrin dan bar tab bawah hanya kelihatan selepas menatal ke bawah'],
+    },
+  },
+  {
     version: '1.7.0',
+    released: '2026-10-30T21:59:42Z',
     notes: {
       en: [
         'Timestamp: keep as many watermarks as you like (company, client, personal…), each with its own text, logo, position and size',

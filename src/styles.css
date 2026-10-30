@@ -84,9 +84,35 @@
 html,
 body,
 #root {
-  /* --app-h is set in index.html for iPhone Home Screen apps, where 100% comes out one status bar short. */
-  height: var(--app-h, 100%);
+  height: 100%;
   margin: 0;
+}
+/*
+ * Page height. iOS is inconsistent here: some versions size a Home Screen app one status bar
+ * short (a gap under the tab bar), others size it correctly. Hard-coding the screen height fixed
+ * the first case but made the page too tall on the second (iPhone 17 Pro Max), pushing the tab bar
+ * off screen. So: the visible viewport in a browser tab, and the large viewport (the whole screen,
+ * as there is no browser UI) when installed. The page itself never scrolls; only content areas do.
+ */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+@media (display-mode: standalone) {
+  @supports (height: 100lvh) {
+    html,
+    body,
+    #root {
+      height: 100lvh;
+    }
+  }
+}
+html,
+body {
+  overflow: hidden;
 }
 body {
   background: var(--bg);

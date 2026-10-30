@@ -286,6 +286,25 @@ export function ToolsTab() {
   )
 }
 
+/**
+ * One line of display facts for troubleshooting layout reports (a screenshot of it says what the
+ * phone reports): screen size, visible viewport, page size, and whether it runs as a Home Screen app.
+ */
+function DisplayInfo() {
+  const [info, setInfo] = useState('')
+  useEffect(() => {
+    const read = () => {
+      const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
+      const root = document.getElementById('root')!.getBoundingClientRect()
+      setInfo(`${screen.width}×${screen.height} · view ${innerWidth}×${innerHeight} · page ${Math.round(root.height)} · ${standalone ? 'app' : 'browser'} · dpr ${devicePixelRatio}`)
+    }
+    read()
+    addEventListener('resize', read)
+    return () => removeEventListener('resize', read)
+  }, [])
+  return <p className="muted small display-info">{info}</p>
+}
+
 export function SettingsTab() {
   const { t, settings, setSettings, lang, toast, push } = useApp()
   const [usage, setUsage] = useState<string>('')
@@ -423,6 +442,7 @@ export function SettingsTab() {
         </ul>
         <p className="muted small">{t('privacyNote')}</p>
         <p className="muted small">AnyScan v{APP_VERSION}</p>
+        <DisplayInfo />
       </div>
 
       <Sheet open={sheet === 'lang'} onClose={() => setSheet(null)} title={t('language')}>
