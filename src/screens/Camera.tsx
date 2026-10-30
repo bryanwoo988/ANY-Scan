@@ -57,7 +57,8 @@ function useCamera(facing: Facing) {
         const caps = (s.getVideoTracks()[0]?.getCapabilities?.() ?? {}) as { torch?: boolean }
         setTorch({ supported: !!caps.torch, on: false })
         setState('live')
-      } catch {
+      } catch (e) {
+        console.warn('AnyScan camera:', e)
         if (alive) setState('error')
       }
     }

@@ -1,18 +1,25 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 const buildId = `${pkg.version}-${Date.now().toString(36)}`
 
-/** Stamps the build id into dist/sw.js so every deploy changes the service worker and phones notice the update. */
+/**
+ * Finishes dist/sw.js: stamps the build id (so every deploy is a new service worker and phones
+ * notice the update) and lists the files to precache, so the app opens offline even if the
+ * first visit loaded them before the service worker was in control.
+ */
 function stampServiceWorker(): Plugin {
   return {
     name: 'anyscan-stamp-sw',
     apply: 'build',
     closeBundle() {
-      const file = new URL('./dist/sw.js', import.meta.url)
-      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('__BUILD_ID__', buildId))
+      const dist = new URL('./dist/', import.meta.url)
+      const assets = readdirSync(new URL('assets/', dist)).map((f) => `./assets/${f}`)
+      const precache = ['./', './index.html', './manifest.webmanifest', './icons/logo.svg', './icons/apple-touch-icon.png', './icons/icon-192.png', ...assets]
+      const file = new URL('sw.js', dist)
+      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('__BUILD_ID__', buildId).replace("'__PRECACHE__'", JSON.stringify(precache)))
     },
   }
 }

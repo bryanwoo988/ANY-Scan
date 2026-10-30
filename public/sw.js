@@ -7,7 +7,9 @@ const OCR_CACHE = 'anyscan-ocr-v1'
 
 self.addEventListener('install', (e) => {
   // Don't take over straight away: the app shows "Update available" and the user decides when.
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './manifest.webmanifest', './icons/logo.svg'])))
+  // The app shell and every bundle (list filled in at build time by vite.config.ts).
+  const files = '__PRECACHE__'
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(Array.isArray(files) ? files : ['./', './index.html'])))
 })
 
 self.addEventListener('message', (e) => {
@@ -30,7 +32,7 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.includes('/assets/') || url.pathname.includes('/ocr/')) {
     const bucket = url.pathname.includes('/ocr/') ? OCR_CACHE : CACHE
     e.respondWith(
-      caches.match(req).then(
+      caches.match(req, { ignoreVary: true }).then(
         (hit) =>
           hit ||
           fetch(req).then((res) => {
@@ -54,6 +56,6 @@ self.addEventListener('fetch', (e) => {
         }
         return res
       })
-      .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))),
+      .catch(() => caches.match(req, { ignoreVary: true }).then((hit) => hit || caches.match('./index.html'))),
   )
 })

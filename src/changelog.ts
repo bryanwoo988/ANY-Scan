@@ -9,6 +9,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.3.1',
+    date: '2026-10-30',
+    notes: {
+      en: ['Fixed: AnyScan now opens without internet after your first visit (it could get stuck on the splash screen)'],
+      zh: ['修复：首次打开后，没有网络也能正常打开 AnyScan（之前可能会卡在启动画面）'],
+      ms: ['Dibaiki: AnyScan kini boleh dibuka tanpa internet selepas lawatan pertama (sebelum ini boleh tersekat di skrin pembuka)'],
+    },
+  },
+  {
     version: '1.3.0',
     date: '2026-10-30',
     notes: {
