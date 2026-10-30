@@ -2559,3 +2559,121 @@ p {
   background: var(--accent);
   opacity: 1;
 }
+
+/* timestamp: watermark library and combinations */
+.form-group-title {
+  margin: 8px 0 -4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.wm-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.wm-list:empty {
+  display: none;
+}
+.wm-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+.wm-row:last-child {
+  border-bottom: 0;
+}
+.wm-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  text-align: left;
+}
+.wm-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--card-2);
+  flex-shrink: 0;
+}
+.wm-logo.text-only {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.wm-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wm-text strong,
+.wm-text span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.combo-chips {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 170px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.combo-chips::-webkit-scrollbar {
+  display: none;
+}
+.combo-chips button {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.combo-chips button.on {
+  background: #2fbf8f;
+  border-color: #2fbf8f;
+  color: #04150f;
+}
+
+/* Timestamp mode: controls live below the preview, zoom on the side, so the watermark stays visible */
+.cam-ts-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 0;
+}
+.cam-ts-bar .combo-chips {
+  position: static;
+  flex: 1;
+  min-width: 0;
+}
+.cam-ts-bar .cam-stamp-edit {
+  position: static;
+  flex-shrink: 0;
+}
+.cam-zoom.side {
+  left: auto;
+  right: 10px;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  flex-direction: column;
+}

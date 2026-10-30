@@ -10,7 +10,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.7.0',
+    notes: {
+      en: [
+        'Timestamp: keep as many watermarks as you like (company, client, personal…), each with its own text, logo, position and size',
+        'Use several watermarks on one photo',
+        'Combinations: save a date template + info settings + watermarks under a name, and switch between them with one tap in the camera',
+        'Editing a watermark updates every combination that uses it',
+      ],
+      zh: ['时间水印：可建立多个水印（公司、客户、个人…），各有自己的文字、Logo、位置和大小', '一张照片可同时使用多个水印', '组合：把日期模板、信息设置和水印存成一个命名组合，在相机里一点就能切换', '修改一个水印，所有用到它的组合都会一起更新'],
+      ms: [
+        'Cap masa: simpan seberapa banyak tera air (syarikat, pelanggan, peribadi…), setiap satu dengan teks, logo, kedudukan dan saiz sendiri',
+        'Guna beberapa tera air pada satu foto',
+        'Gabungan: simpan templat tarikh + tetapan maklumat + tera air di bawah satu nama, dan tukar dengan satu ketikan dalam kamera',
+        'Menyunting tera air mengemas kini setiap gabungan yang menggunakannya',
+      ],
+    },
+  },
+  {
     version: '1.6.1',
+    released: '2026-10-30T21:27:13Z',
     notes: {
       en: [
         'Timestamp: the time/info group and your watermark (logo + text) now each have their own position and size',

@@ -7,6 +7,13 @@ export const STAMP_TEMPLATES: StampTemplate[] = ['timeLocation', 'onSite', 'cloc
 export type StampPos = 'tl' | 'tc' | 'tr' | 'bl' | 'bc' | 'br'
 export const STAMP_POSITIONS: StampPos[] = ['tl', 'tc', 'tr', 'bl', 'bc', 'br']
 
+export interface StampMark {
+  text: string
+  logo: HTMLImageElement | null
+  pos: StampPos
+  size: number // 0.5 – 4
+}
+
 export interface StampOptions {
   template: StampTemplate
   when: Date
@@ -15,13 +22,10 @@ export interface StampOptions {
   location: string
   coords: string // GPS coordinates line, '' to hide
   note: string
-  brand: string // the user's own watermark line, e.g. a company name
-  logo: HTMLImageElement | null
+  /** The user's watermarks (logo and/or text), each with its own position and size. */
+  marks: StampMark[]
   pos: StampPos // where the time / date / location / note group goes
   size: number // 0.6 – 1.6, size of that group
-  // The user's watermark (logo + text) is a separate group with its own position and size.
-  brandPos: StampPos
-  brandSize: number // 0.5 – 4
   locale: string // BCP 47, for the weekday name
   labels: { onSite: string; clockIn: string; time: string; location: string; note: string; gps: string }
 }
@@ -83,28 +87,28 @@ function measure(ctx: CanvasRenderingContext2D, font: string, text: string): num
 }
 
 /** The user's watermark line (logo + text), shared by all templates. */
-function brandLine(ctx: CanvasRenderingContext2D, o: StampOptions, u: number, color: string): Block | null {
-  if (!o.brand && !o.logo) return null
+function markBlock(ctx: CanvasRenderingContext2D, o: StampMark, u: number, color: string): Block | null {
+  if (!o.text && !o.logo) return null
   const fs = 2.6 * u
   const font = `500 ${fs}px ${FONT}`
   const logoH = o.logo ? fs * 1.5 : 0
   const logoW = o.logo ? (logoH * o.logo.width) / o.logo.height : 0
-  const gap = o.logo && o.brand ? fs * 0.5 : 0
-  const tw = o.brand ? measure(ctx, font, o.brand) : 0
+  const gap = o.logo && o.text ? fs * 0.5 : 0
+  const tw = o.text ? measure(ctx, font, o.text) : 0
   return {
     w: logoW + gap + tw,
     h: Math.max(logoH, fs * 1.3),
     draw: (x, y) => {
       const h = Math.max(logoH, fs * 1.3)
       if (o.logo) ctx.drawImage(o.logo, x, y + (h - logoH) / 2, logoW, logoH)
-      if (o.brand) {
+      if (o.text) {
         ctx.save()
         ctx.font = font
         ctx.fillStyle = color
         ctx.textBaseline = 'middle'
         ctx.shadowColor = 'rgba(0,0,0,.55)'
         ctx.shadowBlur = fs * 0.18
-        ctx.fillText(o.brand, x + logoW + gap, y + h / 2)
+        ctx.fillText(o.text, x + logoW + gap, y + h / 2)
         ctx.restore()
       }
     },
@@ -326,45 +330,44 @@ function place(pos: StampPos, w: number, h: number, W: number, H: number, margin
 }
 
 /**
- * Draws the stamp onto `c` (which already holds the photo): the time/info group at `pos` and the
- * user's watermark group at `brandPos`, each with its own size. If both are put in the same spot
- * they are stacked (info first) so they don't overlap.
+ * Draws the stamp onto `c` (which already holds the photo): the time/info group at `pos` and each
+ * of the user's watermarks at its own position and size. Groups that share a spot are stacked
+ * (info first, then the watermarks in order) so they never overlap.
  */
 export function drawStamp(c: HTMLCanvasElement, o: StampOptions): void {
   const ctx = c.getContext('2d')!
   const base = Math.min(c.width, c.height) / 100
   const W = c.width
   const H = c.height
-  const brandColor = o.template === 'classic' ? '#ff8a00' : 'rgba(255,255,255,.92)'
+  const markColor = o.template === 'classic' ? '#ff8a00' : 'rgba(255,255,255,.92)'
+  const margin = 4 * base
   ctx.save()
   // Shrink a group to fit if a long location, note or watermark would run off the photo.
-  const fitted = (build: (scale: number) => Block | null, scale: number, margin: number) => {
+  const fitted = (build: (scale: number) => Block | null, scale: number) => {
     const b = build(scale)
     if (!b) return null
     const f = Math.min(1, (W - margin * 2) / b.w, (H - margin * 2) / b.h)
     return f < 1 ? build(scale * f) : b
   }
-  const margin = 4 * base
-  const info = fitted((k) => buildBlock(ctx, { ...o, size: k }, base * k), o.size, margin)!
-  const brand = fitted((k) => brandLine(ctx, o, base * k, brandColor), o.brandSize, margin)
-  if (brand && o.brandPos === o.pos) {
-    const gap = 1.2 * base * o.size
-    const both = stack([info, brand], gap)
-    const xy = place(o.pos, both.w, both.h, W, H, margin)
-    // Centre each group within the shared column when the column is centred.
-    if (o.pos.endsWith('c')) {
-      info.draw(xy.x + (both.w - info.w) / 2, xy.y)
-      brand.draw(xy.x + (both.w - brand.w) / 2, xy.y + info.h + gap)
-    } else if (o.pos.endsWith('r')) {
-      info.draw(xy.x + both.w - info.w, xy.y)
-      brand.draw(xy.x + both.w - brand.w, xy.y + info.h + gap)
-    } else both.draw(xy.x, xy.y)
-  } else {
-    const a = place(o.pos, info.w, info.h, W, H, margin)
-    info.draw(a.x, a.y)
-    if (brand) {
-      const b = place(o.brandPos, brand.w, brand.h, W, H, margin)
-      brand.draw(b.x, b.y)
+  const groups = new Map<StampPos, { blocks: Block[]; gap: number }>()
+  const add = (pos: StampPos, b: Block | null, gap: number) => {
+    if (!b) return
+    const g = groups.get(pos) ?? { blocks: [], gap }
+    g.blocks.push(b)
+    groups.set(pos, g)
+  }
+  add(o.pos, fitted((k) => buildBlock(ctx, { ...o, size: k }, base * k), o.size), 1.2 * base * o.size)
+  for (const m of o.marks) add(m.pos, fitted((k) => markBlock(ctx, m, base * k, markColor), m.size), 1.2 * base * m.size)
+  for (const [pos, g] of groups) {
+    const w = Math.max(...g.blocks.map((b) => b.w))
+    const h = g.blocks.reduce((a, b) => a + b.h, 0) + g.gap * (g.blocks.length - 1)
+    const xy = place(pos, w, h, W, H, margin)
+    let y = xy.y
+    for (const b of g.blocks) {
+      // Within a shared spot each block keeps the spot's alignment (left, centre or right).
+      const x = pos.endsWith('l') ? xy.x : pos.endsWith('r') ? xy.x + w - b.w : xy.x + (w - b.w) / 2
+      b.draw(x, y)
+      y += b.h + g.gap
     }
   }
   ctx.restore()

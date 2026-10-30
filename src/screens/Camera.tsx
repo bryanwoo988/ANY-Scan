@@ -12,7 +12,7 @@ import { useApp } from '../state'
 import { loadJSON, saveJSON } from '../lib/settings'
 import { createDoc, defaultDocName } from '../lib/db'
 import { drawStamp } from '../lib/stamp'
-import { locate, PresetBar, StampContentForm, TemplatePicker, useStampOptions, useStampPrefs, type Place } from '../components/StampEditor'
+import { CombinationChips, locate, PresetBar, StampContentForm, TemplatePicker, useStampOptions, useStampPrefs, type Place } from '../components/StampEditor'
 import { Segmented } from '../components/ui'
 import { addQrHistory, QrResult } from './Qr'
 
@@ -546,9 +546,6 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
         {mode === 'timestamp' && (
           <>
             <canvas ref={stampRef} className="cam-stamp" />
-            <button className="cam-stamp-edit" onClick={() => setStampEdit('templates')}>
-              <Icon name="edit" size={16} /> {t('ts.edit')}
-            </button>
           </>
         )}
         {mode === 'qr' && (
@@ -576,7 +573,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           </button>
         )}
         {state === 'live' && (
-          <div className={`cam-zoom ${mode === 'scan' ? 'above-seg' : ''}`}>
+          <div className={`cam-zoom ${mode === 'scan' ? 'above-seg' : ''} ${mode === 'timestamp' ? 'side' : ''}`}>
             {ZOOM_STEPS.filter((z) => z <= maxZoom).map((z, i, steps) => {
               // The highlighted button is the step at or below the current zoom; while pinching
               // between steps it shows the exact value (e.g. 1.7×).
@@ -602,6 +599,15 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
       </div>
 
       <div className="cam-bottom">
+        {mode === 'timestamp' && (
+          // Kept below the preview so nothing covers the watermark being previewed.
+          <div className="cam-ts-bar">
+            <CombinationChips presetId={stamp.presetId} choosePreset={stamp.choosePreset} />
+            <button className="cam-stamp-edit" onClick={() => setStampEdit('templates')}>
+              <Icon name="edit" size={16} /> {t('ts.edit')}
+            </button>
+          </div>
+        )}
         <div className="cam-strip" ref={stripRef}>
           {MODES.map((m) => (
             <button key={m.id} data-mode={m.id} className={m.id === mode ? 'on' : ''} onClick={() => switchMode(m.id)}>
