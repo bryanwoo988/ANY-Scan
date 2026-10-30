@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '../components/Icon'
-import { DocRow, PageImg, Screen } from '../components/ui'
+import { DocRow, PageImg, Screen, Segmented } from '../components/ui'
 import { createDoc, defaultDocName, getPage, getPages, replacePage, type PageRec } from '../lib/db'
 import { buildDocx, safeFileName } from '../lib/export'
-import { blobToCanvas, canvasToBlob, createCanvas, ctx2d, formatStamp } from '../lib/image'
+import { blobToCanvas, canvasToBlob, createCanvas, ctx2d, scaleCanvas } from '../lib/image'
+import { drawStamp, STAMP_TEMPLATES, type StampOptions, type StampPos, type StampTemplate } from '../lib/stamp'
 import { OCR_LANGS, recognize, type OcrLang } from '../lib/ocr'
 import { loadJSON, saveJSON } from '../lib/settings'
 import { copyText, shareOrDownload } from '../lib/share'
@@ -485,49 +486,135 @@ export function WatermarkScreen({ docId }: { docId: string }) {
 
 // ---------------------------------------------------------------- Timestamp
 
+interface StampPrefs {
+  template: StampTemplate
+  hour24: boolean
+  showDate: boolean
+  location: string
+  note: string
+  brand: string
+  logo: string | null // data URL
+  pos: StampPos
+  size: number
+}
+const STAMP_KEY = 'anyscan.timestamp'
+const STAMP_DEFAULTS: StampPrefs = { template: 'timeLocation', hour24: false, showDate: true, location: '', note: '', brand: '', logo: null, pos: 'bl', size: 1 }
+
+/** Downscales a picked logo so it fits comfortably in local storage. */
+async function logoDataUrl(f: File): Promise<string> {
+  const c = scaleCanvas(await blobToCanvas(f, 2000), 256)
+  return c.toDataURL('image/png')
+}
+
+/** Place name for the current position via OpenStreetMap; coordinates if that fails. */
+async function currentPlace(lang: string): Promise<string> {
+  const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000 }))
+  const { latitude: lat, longitude: lon } = pos.coords
+  const coords = `${lat.toFixed(5)}, ${lon.toFixed(5)}`
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${lat}&lon=${lon}&accept-language=${lang}`)
+    const j = (await r.json()) as { name?: string; address?: Record<string, string> }
+    const a = j.address ?? {}
+    const parts = [j.name, a.road, a.suburb ?? a.neighbourhood, a.city ?? a.town ?? a.village ?? a.state].filter((x, i, arr) => x && arr.indexOf(x) === i)
+    return parts.slice(0, 3).join(', ') || coords
+  } catch {
+    return coords
+  }
+}
+
+function useLogo(dataUrl: string | null): HTMLImageElement | null {
+  const [img, setImg] = useState<HTMLImageElement | null>(null)
+  useEffect(() => {
+    if (!dataUrl) return setImg(null)
+    const i = new Image()
+    i.onload = () => setImg(i)
+    i.src = dataUrl
+  }, [dataUrl])
+  return img
+}
+
+const SAMPLE_BG = (() => {
+  let c: HTMLCanvasElement | null = null
+  return () => {
+    if (c) return c
+    c = createCanvas(480, 360)
+    const x = ctx2d(c)
+    const g = x.createLinearGradient(0, 0, 480, 360)
+    g.addColorStop(0, '#3b4a5c')
+    g.addColorStop(1, '#1d242e')
+    x.fillStyle = g
+    x.fillRect(0, 0, 480, 360)
+    return c
+  }
+})()
+
+function TemplateThumb({ opts, on, label, onClick }: { opts: StampOptions; on: boolean; label: string; onClick: () => void }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const c = ref.current
+    if (!c) return
+    c.width = 480
+    c.height = 360
+    ctx2d(c).drawImage(SAMPLE_BG(), 0, 0)
+    drawStamp(c, { ...opts, pos: 'tl', size: 1.5 })
+  }, [opts])
+  return (
+    <button className={`stamp-tpl ${on ? 'on' : ''}`} onClick={onClick} aria-pressed={on}>
+      <canvas ref={ref} />
+      <span>{label}</span>
+    </button>
+  )
+}
+
 export function TimestampScreen({ file }: { file: File }) {
-  const { t, setBusy, replace, toast } = useApp()
+  const { t, lang, setBusy, replace, toast, pickFiles } = useApp()
   const [base, setBase] = useState<HTMLCanvasElement>()
   const [when, setWhen] = useState(() => new Date(file.lastModified || Date.now()))
-  const [color, setColor] = useState('#ff8a00')
-  const [pos, setPos] = useState<'br' | 'bl' | 'tr' | 'tl'>('br')
+  const [prefs, setPrefs] = useState<StampPrefs>(() => ({ ...STAMP_DEFAULTS, ...loadJSON<Partial<StampPrefs>>(STAMP_KEY, {}) }))
+  const [panel, setPanel] = useState<'templates' | 'content'>('templates')
+  const [locating, setLocating] = useState(false)
   const prevRef = useRef<HTMLCanvasElement>(null)
+  const logo = useLogo(prefs.logo)
+
+  const update = (p: Partial<StampPrefs>) =>
+    setPrefs((s) => {
+      const n = { ...s, ...p }
+      saveJSON(STAMP_KEY, n)
+      return n
+    })
 
   useEffect(() => {
     blobToCanvas(file).then(setBase)
   }, [file])
 
-  const draw = (c: HTMLCanvasElement) => {
-    const ctx = ctx2d(c)
-    const fs = Math.round(Math.min(c.width, c.height) * 0.045)
-    ctx.font = `700 ${fs}px ui-monospace, Menlo, monospace`
-    ctx.fillStyle = color
-    ctx.shadowColor = 'rgba(0,0,0,.6)'
-    ctx.shadowBlur = fs * 0.15
-    const m = fs * 0.8
-    ctx.textAlign = pos.endsWith('r') ? 'right' : 'left'
-    ctx.textBaseline = pos.startsWith('b') ? 'bottom' : 'top'
-    ctx.fillText(formatStamp(when), pos.endsWith('r') ? c.width - m : m, pos.startsWith('b') ? c.height - m : m)
-  }
+  const opts = (template: StampTemplate = prefs.template): StampOptions => ({
+    ...prefs,
+    template,
+    when,
+    logo,
+    locale: lang === 'zh' ? 'zh-CN' : lang === 'ms' ? 'ms-MY' : 'en-GB',
+    labels: { onSite: t('ts.onSite'), clockIn: t('ts.clockIn'), time: t('ts.time'), location: t('ts.location'), note: t('ts.note') },
+  })
 
   useEffect(() => {
     const pc = prevRef.current
     if (!pc || !base) return
-    pc.width = base.width
-    pc.height = base.height
-    ctx2d(pc).drawImage(base, 0, 0)
-    draw(pc)
+    const s = Math.min(1, 1200 / Math.max(base.width, base.height))
+    pc.width = Math.round(base.width * s)
+    pc.height = Math.round(base.height * s)
+    ctx2d(pc).drawImage(base, 0, 0, pc.width, pc.height)
+    drawStamp(pc, opts())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, when, color, pos])
+  }, [base, when, prefs, logo, lang])
 
-  const local = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  const local = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19)
 
   return (
     <Screen
       title={t('tool.timestamp')}
-      footer={
+      right={
         <button
-          className="btn primary block"
+          className="btn primary sm"
           disabled={!base}
           onClick={async () => {
             if (!base) return
@@ -535,7 +622,7 @@ export function TimestampScreen({ file }: { file: File }) {
             try {
               const c = createCanvas(base.width, base.height)
               ctx2d(c).drawImage(base, 0, 0)
-              draw(c)
+              drawStamp(c, opts())
               const d = await createDoc(defaultDocName(t('tool.timestamp')), [{ blob: await canvasToBlob(c, 'image/jpeg', 0.92), w: c.width, h: c.height }])
               toast(t('saved'))
               replace('doc', { id: d.id })
@@ -544,30 +631,108 @@ export function TimestampScreen({ file }: { file: File }) {
             }
           }}
         >
-          <Icon name="check" /> {t('save')}
+          <Icon name="check" size={18} /> {t('save')}
         </button>
       }
     >
-      <div className="pad stack">
-        <div className="preview-box">
-          <canvas ref={prevRef} />
-        </div>
-        <label className="field">
-          <span>{t('dateTime')}</span>
-          <input className="input" type="datetime-local" value={local(when)} onChange={(e) => e.target.value && setWhen(new Date(e.target.value))} />
-        </label>
-        <div className="row gap">
-          {['#ff8a00', '#ffffff', '#ffd400', '#e53935'].map((c) => (
-            <button key={c} className={`swatch ${color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
-          ))}
-        </div>
-        <div className="chip-row">
-          {(['tl', 'tr', 'bl', 'br'] as const).map((p) => (
-            <button key={p} className={`chip ${pos === p ? 'on' : ''}`} onClick={() => setPos(p)}>
-              {t(`pos.${p}`)}
+      <div className="stamp-preview">
+        <canvas ref={prevRef} />
+      </div>
+      <div className="stamp-panel">
+        <Segmented
+          value={panel}
+          onChange={setPanel}
+          options={[
+            { value: 'templates', label: t('ts.templates') },
+            { value: 'content', label: t('ts.content') },
+          ]}
+        />
+        {panel === 'templates' ? (
+          <div className="stamp-tpl-grid">
+            {STAMP_TEMPLATES.map((tp) => (
+              // Previews show a sample location when none is set, so every template's layout is visible.
+              <TemplateThumb key={tp} opts={{ ...opts(tp), location: prefs.location || t('ts.sampleLocation') }} on={prefs.template === tp} label={t(`ts.tpl.${tp}`)} onClick={() => update({ template: tp })} />
+            ))}
+          </div>
+        ) : (
+          <div className="stack">
+            <label className="field">
+              <span>{t('dateTime')}</span>
+              <input className="input" type="datetime-local" step={1} value={local(when)} onChange={(e) => e.target.value && setWhen(new Date(e.target.value))} />
+            </label>
+            <div className="row gap wrap">
+              <label className="switch-row grow">
+                <span>{t('ts.hour24')}</span>
+                <input type="checkbox" className="switch" checked={prefs.hour24} onChange={(e) => update({ hour24: e.target.checked })} />
+              </label>
+              <label className="switch-row grow">
+                <span>{t('ts.showDate')}</span>
+                <input type="checkbox" className="switch" checked={prefs.showDate} onChange={(e) => update({ showDate: e.target.checked })} />
+              </label>
+            </div>
+            <label className="field">
+              <span>{t('ts.location')}</span>
+              <input className="input" value={prefs.location} maxLength={80} placeholder={t('ts.locationPlaceholder')} onChange={(e) => update({ location: e.target.value })} />
+            </label>
+            <button
+              className="btn soft"
+              disabled={locating || !navigator.geolocation}
+              onClick={async () => {
+                setLocating(true)
+                try {
+                  update({ location: await currentPlace(lang === 'zh' ? 'zh' : lang) })
+                } catch {
+                  toast(t('ts.locationFailed'))
+                } finally {
+                  setLocating(false)
+                }
+              }}
+            >
+              <Icon name="globe" size={18} /> {locating ? t('ts.locating') : t('ts.useLocation')}
             </button>
-          ))}
-        </div>
+            <p className="muted small">{t('ts.locationNote')}</p>
+            <label className="field">
+              <span>{t('ts.note')}</span>
+              <input className="input" value={prefs.note} maxLength={80} placeholder={t('ts.notePlaceholder')} onChange={(e) => update({ note: e.target.value })} />
+            </label>
+            <div className="field">
+              <span>{t('ts.myWatermark')}</span>
+              <input className="input" value={prefs.brand} maxLength={50} placeholder={t('ts.brandPlaceholder')} onChange={(e) => update({ brand: e.target.value })} />
+              <div className="row gap">
+                {prefs.logo && <img src={prefs.logo} alt="" className="stamp-logo" />}
+                <button
+                  className="btn soft grow"
+                  onClick={() =>
+                    pickFiles({ accept: 'image/*' }).then(async (f) => {
+                      if (f.length) update({ logo: await logoDataUrl(f[0]) })
+                    })
+                  }
+                >
+                  <Icon name="image" size={18} /> {prefs.logo ? t('ts.changeLogo') : t('ts.addLogo')}
+                </button>
+                {prefs.logo && (
+                  <button className="btn ghost" onClick={() => update({ logo: null })}>
+                    {t('delete')}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="field">
+              <span>{t('ts.position')}</span>
+              <div className="chip-row">
+                {(['tl', 'tr', 'bl', 'br'] as const).map((p) => (
+                  <button key={p} className={`chip ${prefs.pos === p ? 'on' : ''}`} onClick={() => update({ pos: p })}>
+                    {t(`pos.${p}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="slider">
+              <span>{t('textSize')}</span>
+              <input type="range" min={0.6} max={1.6} step={0.05} value={prefs.size} onChange={(e) => update({ size: +e.target.value })} />
+            </label>
+          </div>
+        )}
       </div>
     </Screen>
   )

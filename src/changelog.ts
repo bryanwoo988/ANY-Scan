@@ -9,6 +9,23 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.4.0',
+    date: '2026-10-30',
+    notes: {
+      en: [
+        'Timestamp templates: Time & Location, On-Site, Clock-In, Digital Clock and Classic',
+        'Add your own watermark to timestamps: company name and logo',
+        'Location from your phone, plus a note line; 12/24-hour, position and size',
+      ],
+      zh: ['时间水印模板：时间地点、现场、打卡、电子钟、经典', '可在时间水印加上自己的水印：公司名和 Logo', '可用手机定位填地点，并加备注；支持 12/24 小时制、位置和大小调整'],
+      ms: [
+        'Templat cap masa: Masa & Lokasi, Di Tapak, Daftar Masuk, Jam Digital dan Klasik',
+        'Tambah tera air anda sendiri pada cap masa: nama syarikat dan logo',
+        'Lokasi dari telefon anda, serta baris catatan; 12/24 jam, kedudukan dan saiz',
+      ],
+    },
+  },
+  {
     version: '1.3.1',
     date: '2026-10-30',
     notes: {

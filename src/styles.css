@@ -2248,3 +2248,55 @@ p {
   display: grid;
   place-items: center;
 }
+
+/* ---------------------------------------------------------------- timestamp editor */
+.stamp-preview {
+  display: flex;
+  justify-content: center;
+  background: #000;
+  padding: 8px;
+}
+.stamp-preview canvas {
+  max-width: 100%;
+  max-height: 42vh;
+  display: block;
+}
+.stamp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+.stamp-tpl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 12px;
+}
+.stamp-tpl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+}
+.stamp-tpl canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  display: block;
+}
+.stamp-tpl.on canvas {
+  border-color: var(--accent);
+}
+.stamp-tpl.on span {
+  color: var(--accent);
+}
+.stamp-logo {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--card-2);
+}
