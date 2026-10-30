@@ -6,7 +6,7 @@ A free document scanner for your phone. There is no account, no subscription, no
 
 It's a web app (PWA). Open it in Safari or Chrome and add it to your home screen; from then on it runs full screen like a normal app and keeps working offline.
 
-**Languages:** English · 简体中文 · Bahasa Melayu. It follows the phone's language by default, and you can change it under **Me › Language**.
+**Languages:** English · 简体中文 · Bahasa Melayu. On first launch AnyScan asks which language to use (English is preselected); change it anytime under **Settings › Language**.
 
 ## Features
 
