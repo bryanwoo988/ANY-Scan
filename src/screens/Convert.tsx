@@ -151,7 +151,7 @@ export function ConvertScreen({ target, file, docId }: { target: Target; file?: 
           <div className="grow">
             <div className="doc-name">{name || '…'}</div>
             <div className="muted small">
-              {loading ? (loading.total ? t('loadingPages', { done: loading.done, total: loading.total }) : t('loading')) : pages ? t('nPages', { n: pages.length }) : ''}
+              {loading ? (loading.total ? t('loadingPages', { done: loading.done, total: loading.total }) : t('loading')) : pages ? (pages.length === 1 ? t('onePage') : t('nPages', { n: pages.length })) : ''}
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { importPdf, PdfPasswordError } from './lib/export'
 export type ToolId =
   | 'smartScan' | 'idCard' | 'ocr' | 'idPhoto' | 'timestamp'
   | 'importImages' | 'importFiles'
-  | 'toWord' | 'pdfToWord' | 'pdfToPpt' | 'pdfToImages' | 'longImage'
+  | 'toWord' | 'pdfToWord' | 'pdfToPpt' | 'toExcel' | 'pdfToImages' | 'longImage'
   | 'sign' | 'watermark' | 'merge' | 'extract' | 'reorder' | 'lock' | 'compress'
   | 'qr' | 'qrScan' | 'qrCreate' | 'print'
 
@@ -35,6 +35,7 @@ export const TOOLS: Record<ToolId, Tool> = {
   toWord: { id: 'toWord', icon: 'word', color: C.blue, label: 'tool.toWord' },
   pdfToWord: { id: 'pdfToWord', icon: 'word', color: C.blue, label: 'tool.pdfToWord', isNew: true },
   pdfToPpt: { id: 'pdfToPpt', icon: 'ppt', color: C.orange, label: 'tool.pdfToPpt', isNew: true },
+  toExcel: { id: 'toExcel', icon: 'excel', color: '#21a366', label: 'tool.toExcel', isNew: true },
   pdfToImages: { id: 'pdfToImages', icon: 'images', color: C.teal, label: 'tool.pdfToImages' },
   longImage: { id: 'longImage', icon: 'long', color: C.teal, label: 'tool.longImage' },
   sign: { id: 'sign', icon: 'sign', color: C.green, label: 'tool.sign' },
@@ -54,7 +55,7 @@ export const SECTIONS: { title: TKey; tools: ToolId[] }[] = [
   { title: 'section.scan', tools: ['smartScan', 'idCard', 'ocr', 'idPhoto', 'timestamp'] },
   { title: 'section.qr', tools: ['qrScan', 'qrCreate', 'qr'] },
   { title: 'section.import', tools: ['importImages', 'importFiles'] },
-  { title: 'section.convert', tools: ['pdfToWord', 'pdfToPpt', 'toWord', 'pdfToImages', 'longImage'] },
+  { title: 'section.convert', tools: ['pdfToWord', 'pdfToPpt', 'toExcel', 'toWord', 'pdfToImages', 'longImage'] },
   { title: 'section.edit', tools: ['sign', 'watermark', 'merge', 'extract', 'reorder', 'lock', 'compress'] },
   { title: 'section.utilities', tools: ['print'] },
 ]
@@ -161,6 +162,8 @@ export function useTools() {
         return push('pick', { title: 'tool.pdfToWord', next: 'convert', nextParams: { target: 'docx' }, passFile: true })
       case 'pdfToPpt':
         return push('pick', { title: 'tool.pdfToPpt', next: 'convert', nextParams: { target: 'pptx' }, passFile: true })
+      case 'toExcel':
+        return push('excel')
       case 'pdfToImages':
         return push('pick', { title: 'tool.pdfToImages', next: 'export', nextParams: { preset: 'jpg' } })
       case 'longImage':

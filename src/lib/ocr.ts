@@ -51,3 +51,49 @@ export async function recognize(
   }
   return parts.join('\n\n')
 }
+
+export interface OcrWord {
+  text: string
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  /** Height of the word's text line, a steadier size measure than the word box. */
+  lh: number
+  /** Index of the text line Tesseract put the word in. */
+  line: number
+}
+
+/**
+ * Recognizes one image and returns its words with their boxes (in image pixels), for table layout.
+ * Uses "single column of variable sizes" segmentation, which keeps table rows together; ruled tables
+ * otherwise tend to be skipped as pictures. Falls back to sparse-text mode if little is found.
+ */
+export async function recognizeWords(image: Blob, langs: OcrLang[], onProgress: (fraction: number, status: string) => void): Promise<OcrWord[]> {
+  const worker = await getWorker(langs, onProgress)
+  const run = async (psm: '4' | '11') => {
+    await worker.setParameters({ tessedit_pageseg_mode: psm as never })
+    const { data } = await worker.recognize(image, {}, { blocks: true })
+    const words: OcrWord[] = []
+    let line = 0
+    for (const b of data.blocks ?? [])
+      for (const p of b.paragraphs)
+        for (const l of p.lines) {
+          for (const w of l.words) if (w.text.trim() && w.confidence > 20) words.push({ text: w.text.trim(), ...w.bbox, lh: l.bbox.y1 - l.bbox.y0, line })
+          line++
+        }
+    return words
+  }
+  try {
+    let words = await run('4')
+    if (words.length < 8) {
+      const sparse = await run('11')
+      if (sparse.length > words.length) words = sparse
+    }
+    onProgress(1, 'done')
+    return words
+  } finally {
+    // Back to automatic page segmentation for plain text recognition.
+    await worker.setParameters({ tessedit_pageseg_mode: '3' as never })
+  }
+}

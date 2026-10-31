@@ -3089,3 +3089,116 @@ p {
 .conv-note {
   margin-top: -6px;
 }
+
+/* ---------------------------------------------------------------- Convert to Excel */
+.xl-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px 22px;
+  background: linear-gradient(135deg, color-mix(in srgb, #21a366 22%, var(--bg)), color-mix(in srgb, #22b8cf 14%, var(--bg)));
+}
+.xl-hero h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 750;
+}
+.xl-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.xl-spark {
+  color: #21a366;
+  font-size: 18px;
+  vertical-align: super;
+}
+.xl-logo {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: #21a366;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(33, 163, 102, 0.35);
+}
+.xl-sources {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.xl-sources button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px;
+  border-radius: 14px;
+  background: var(--card-2);
+  font-size: 16px;
+  font-weight: 600;
+}
+.xl-sources button:nth-child(1) svg { color: #21a366; }
+.xl-sources button:nth-child(2) svg { color: #4f7cff; }
+.xl-sources button:nth-child(3) svg { color: #ff7a45; }
+.xl-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.xl-doc {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--card-2);
+  text-align: left;
+}
+.xl-doc-thumb {
+  width: 48px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  flex: none;
+}
+.xl-preview {
+  overflow: auto;
+  max-height: 46vh;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: #1e2638;
+}
+.xl-preview table {
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 100%;
+}
+.xl-preview th,
+.xl-preview td {
+  border: 1px solid #dde4f0;
+  padding: 4px 8px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xl-preview th {
+  position: sticky;
+  top: 0;
+  background: #eef3f0;
+  color: #687389;
+  font-weight: 600;
+}
+.xl-preview tbody th {
+  left: 0;
+  z-index: 1;
+}
+.xl-preview td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
