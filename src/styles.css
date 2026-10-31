@@ -2863,11 +2863,6 @@ p {
   display: grid;
   place-items: center;
 }
-.bin-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .bin-left {
   display: inline-block;
   margin-top: 4px;
@@ -2883,4 +2878,81 @@ p {
   background: var(--card-2);
   color: var(--accent);
   flex: none;
+}
+
+/* ---------------------------------------------------------------- batch select */
+.check {
+  position: relative;
+  touch-action: none; /* sliding along the checkboxes selects instead of scrolling */
+}
+.check::before {
+  content: '';
+  position: absolute;
+  inset: -14px -16px -14px -14px;
+}
+.doc-row-wrap.selected {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.doc-row-wrap.selected .doc-row {
+  background: transparent;
+}
+.select-btn {
+  font-weight: 650;
+  padding: 8px 4px;
+}
+.selection-bar.batch {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 8px 8px;
+}
+.selection-bar.batch.in-screen {
+  position: static;
+  transform: none;
+  width: auto;
+  margin: 8px 12px calc(var(--safe-bottom) + 8px);
+}
+.sel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+  min-height: 40px;
+  font-weight: 650;
+}
+.in-screen .sel-head {
+  padding-left: 10px;
+}
+.sel-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+}
+.sel-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--card-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sel-actions button:disabled {
+  opacity: 0.4;
+}
+.sel-spacer {
+  height: 150px;
+}
+.bin-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bin-note .grow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }

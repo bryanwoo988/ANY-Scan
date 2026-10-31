@@ -6,7 +6,8 @@ import { Sheet, TextDialog, type SwipeAction } from './ui'
 import { createAlbum, docFromPages, getPages, moveDocsToAlbum, renameDoc, restore, trashDocs, type DocRec } from '../lib/db'
 import { useAlbums, useApp } from '../state'
 
-export function useDocActions() {
+/** `onSelect` adds "Select" to the long-press menu, to start picking several files. */
+export function useDocActions(opts: { onSelect?: (d: DocRec) => void } = {}) {
   const { t, push, toast } = useApp()
   const albums = useAlbums()
   const [menuDoc, setMenuDoc] = useState<DocRec | null>(null)
@@ -41,6 +42,17 @@ export function useDocActions() {
       <Sheet open={!!menuDoc} onClose={() => setMenuDoc(null)} title={menuDoc?.name}>
         {menuDoc && (
           <div className="option-list">
+            {opts.onSelect && (
+              <button
+                className="option"
+                onClick={() => {
+                  setMenuDoc(null)
+                  opts.onSelect!(menuDoc)
+                }}
+              >
+                <Icon name="check" /> {t('select')}
+              </button>
+            )}
             {(
               [
                 ['docs', t('open'), () => push('doc', { id: menuDoc.id })],

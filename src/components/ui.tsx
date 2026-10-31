@@ -88,7 +88,9 @@ export function DocRow({ doc, onClick, selected, onSelect, actions, swipe, onLon
   const down = (e: React.PointerEvent) => {
     // A swipe or long-press may not be followed by a click (touch rarely is), so reset per gesture.
     swallowClick.current = false
-    const timer = onLongPress
+    // Up/down from the checkbox is drag-to-select (see dragSelect.ts); sideways still swipes. No long-press there.
+    const onCheck = !!(e.target as Element).closest('.check')
+    const timer = onLongPress && !onCheck
       ? window.setTimeout(() => {
           if (!g.current || g.current.dir) return
           g.current.long = true
@@ -138,7 +140,7 @@ export function DocRow({ doc, onClick, selected, onSelect, actions, swipe, onLon
   }
 
   return (
-    <div className="doc-row-wrap">
+    <div className={`doc-row-wrap ${selected ? 'selected' : ''}`} data-sel-id={doc.id}>
       <div className="swipe-box">
         {swipe && dx !== 0 && (
           <div className="swipe-actions" style={{ width }}>

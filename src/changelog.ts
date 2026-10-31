@@ -10,7 +10,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.8.1',
+    notes: {
+      en: [
+        'Batch select: tap "Select" in Documents, then tap files, or slide your finger along the checkboxes to pick many at once (the list scrolls when you reach the edge; slide back to undo)',
+        'Select all / Deselect all, then Move to album, Merge or Delete in one go',
+        'Long-press a file → "Select" to start selecting from it',
+        'Recycle Bin: select several items to restore or delete them together',
+      ],
+      zh: ['批量选择：在文件页点「选择」，再点文件；或手指按住勾选框上下滑动，一次选很多个（滑到边缘会自动滚动，往回滑可取消）', '可一键全选/取消全选，然后一起移到相册、合并或删除', '按住文件 →「选择」，从这个文件开始多选', '回收站也能多选，一次恢复或永久删除多个项目'],
+      ms: [
+        'Pilih berkelompok: ketik "Pilih" dalam Dokumen, kemudian ketik fail, atau leret jari sepanjang kotak semak untuk memilih banyak sekaligus (senarai menatal apabila sampai ke tepi; leret balik untuk batal)',
+        'Pilih semua / Nyahpilih semua, kemudian Pindah ke album, Gabung atau Padam sekali gus',
+        'Tekan lama fail → "Pilih" untuk mula memilih dari fail itu',
+        'Tong Kitar Semula: pilih beberapa item untuk dipulihkan atau dipadam bersama',
+      ],
+    },
+  },
+  {
     version: '1.8.0',
+    released: '2026-10-31T01:38:32Z',
     notes: {
       en: [
         'Swipe a file left for Rename, Album and Delete; long-press for more (Open, Move to album, Share, Duplicate…) — on Home and in Documents',

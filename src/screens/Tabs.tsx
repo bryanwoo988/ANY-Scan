@@ -8,6 +8,7 @@ import { DocRow, Empty, Segmented, Sheet, TextDialog, ToolTile } from '../compon
 import { LANGS, makeT, type Lang } from '../i18n'
 import { BIN_DAYS, clearAll, createAlbum, listBin, onDbChange, renameAlbum, trashAlbum } from '../lib/db'
 import { useDocActions } from '../components/DocActions'
+import { useDragSelect } from '../components/dragSelect'
 import { formatBytes, FILTERS } from '../lib/image'
 import { useAlbums, useApp, useDocs } from '../state'
 import { FAVORITES_MAX, SECTIONS, TOOLS, useFavorites, useTools, type ToolId } from '../tools'
@@ -188,10 +189,11 @@ export function DocsTab() {
   const { t, push } = useApp()
   const docs = useDocs()
   const albums = useAlbums()
-  const actions = useDocActions()
+  const [sel, setSel] = useState<string[]>([])
+  const [selectMode, setSelectMode] = useState(false)
+  const actions = useDocActions({ onSelect: (d) => setSel([d.id]) })
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<'date' | 'name'>('date')
-  const [sel, setSel] = useState<string[]>([])
   const [album, setAlbum] = useState<string | null>(null) // null = All
   const [albumDialog, setAlbumDialog] = useState<null | 'new' | 'rename'>(null)
   const [deletingAlbum, setDeletingAlbum] = useState(false)
@@ -215,12 +217,25 @@ export function DocsTab() {
   }, [docs, q, sort, album])
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const selecting = selectMode || sel.length > 0
+  const endSelect = () => {
+    setSel([])
+    setSelectMode(false)
+  }
+  const shownIds = shown.map((d) => d.id)
+  const allShown = shownIds.length > 0 && shownIds.every((id) => sel.includes(id))
+  const drag = useDragSelect(shownIds, sel, setSel)
   const count = (id: string | null) => (docs ?? []).filter((d) => !id || d.albumId === id).length
 
   return (
     <div className="tab-page">
       <div className="topbar">
         <h1 className="tab-title grow">{t('tab.docs')}</h1>
+        {!!docs?.length && (
+          <button className="link select-btn" onClick={() => (selecting ? endSelect() : setSelectMode(true))}>
+            {selecting ? t('cancel') : t('select')}
+          </button>
+        )}
         <button className="bin-btn" onClick={() => push('bin')} aria-label={t('recycleBin')}>
           <Icon name="trash" size={20} />
           {binCount > 0 && <span className="bin-count">{binCount}</span>}
@@ -267,45 +282,54 @@ export function DocsTab() {
       </div>
       {docs && docs.length === 0 && <Empty icon="docs" text={t('noDocsYet')} />}
       {docs && docs.length > 0 && shown.length === 0 && <Empty icon="album" text={current && !q.trim() ? t('albumEmpty') : t('noMatchingDocs')} />}
-      {docs && docs.length > 0 && <p className="pad muted small swipe-hint">{t('swipeHint')}</p>}
-      <div className="list">
+      {docs && docs.length > 0 && <p className="pad muted small swipe-hint">{selecting ? t('dragSelectHint') : t('swipeHint')}</p>}
+      <div className={`list ${selecting ? 'selecting' : ''}`} {...drag}>
         {shown.map((d) => (
           <DocRow
             key={d.id}
             doc={d}
-            onClick={() => push('doc', { id: d.id })}
+            onClick={() => (selecting ? toggle(d.id) : push('doc', { id: d.id }))}
             selected={sel.includes(d.id)}
             onSelect={() => toggle(d.id)}
-            swipe={actions.swipe(d)}
-            onLongPress={() => actions.menu(d)}
+            swipe={selecting ? undefined : actions.swipe(d)}
+            onLongPress={selecting ? undefined : () => actions.menu(d)}
             extra={!album && d.albumId ? <span className="doc-album">{actions.albumName(d.albumId)}</span> : undefined}
           />
         ))}
       </div>
-      {sel.length > 0 && (
-        <div className="selection-bar">
-          <span>{t('nSelected', { n: sel.length })}</span>
-          <button className="btn soft" onClick={() => actions.move(sel, () => setSel([]))} aria-label={t('moveToAlbum')}>
-            <Icon name="album" size={18} />
-          </button>
-          {sel.length > 1 && (
-            <button className="btn soft" onClick={() => push('merge', { docIds: sel })} aria-label={t('tool.merge')}>
-              <Icon name="merge" size={18} />
+      {selecting && <div className="sel-spacer" />}
+      {selecting && (
+        <div className="selection-bar batch">
+          <div className="sel-head">
+            <button className="icon-btn" onClick={endSelect} aria-label={t('close')}>
+              <Icon name="close" />
             </button>
-          )}
-          <button
-            className="btn danger"
-            onClick={async () => {
-              await actions.trash(sel)
-              setSel([])
-            }}
-            aria-label={t('delete')}
-          >
-            <Icon name="trash" size={18} />
-          </button>
-          <button className="icon-btn" onClick={() => setSel([])} aria-label={t('close')}>
-            <Icon name="close" />
-          </button>
+            <span className="grow">{t('nSelected', { n: sel.length })}</span>
+            <button className="link" onClick={() => setSel(allShown ? sel.filter((id) => !shownIds.includes(id)) : [...new Set([...sel, ...shownIds])])}>
+              {allShown ? t('deselectAll') : t('selectAllN', { n: shownIds.length })}
+            </button>
+          </div>
+          <div className="sel-actions">
+            <button disabled={!sel.length} onClick={() => actions.move(sel, endSelect)}>
+              <Icon name="album" size={20} />
+              <span>{t('moveToAlbum')}</span>
+            </button>
+            <button disabled={sel.length < 2} onClick={() => push('merge', { docIds: sel })}>
+              <Icon name="merge" size={20} />
+              <span>{t('tool.merge')}</span>
+            </button>
+            <button
+              className="danger-text"
+              disabled={!sel.length}
+              onClick={async () => {
+                await actions.trash(sel)
+                endSelect()
+              }}
+            >
+              <Icon name="trash" size={20} />
+              <span>{t('delete')}</span>
+            </button>
+          </div>
         </div>
       )}
       {actions.sheets}
