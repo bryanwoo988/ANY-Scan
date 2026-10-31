@@ -1137,6 +1137,66 @@ p {
   overflow: auto;
   touch-action: pinch-zoom pan-x pan-y;
 }
+/* Pinch / double-tap zoom, drag, swipe between pages (ZoomView) */
+.zoom-view {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.zoom-view img {
+  transform-origin: center;
+  will-change: transform;
+}
+.zoom-view img.anim {
+  transition: transform 0.2s ease-out;
+}
+.zoom-view.stale img {
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+.zoom-view .spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+.preview-tags {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.preview-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.preview-tag.btn-tag {
+  pointer-events: auto;
+  border: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.preview-tag.btn-tag.on {
+  background: var(--accent);
+}
 .strip {
   display: flex;
   gap: 10px;
@@ -1160,7 +1220,8 @@ p {
 .filter-chip .img-ph {
   width: 58px;
   height: 72px;
-  object-fit: cover;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   border: 2px solid transparent;
 }
@@ -1184,7 +1245,7 @@ p {
 .page-chip .img-ph {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .page-chip.on {
   border-color: var(--accent);

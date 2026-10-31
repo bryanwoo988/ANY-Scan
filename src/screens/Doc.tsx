@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { ZoomView } from '../components/ZoomView'
 import { DocRow, Empty, PageImg, Screen, Segmented, Sheet, TextDialog } from '../components/ui'
 import {
   createDoc, docFromPages, moveDocsToAlbum, restore, trashDocs, listDocs, getDoc, getPage, getPages, onDbChange, renameDoc, replacePage, setPageOrder,
@@ -233,7 +234,7 @@ export function PageScreen({ docId, index }: { docId: string; index: number }) {
         </div>
       }
     >
-      <div className="result-box zoomable">{url && <img src={url} alt="" />}</div>
+      <ZoomView src={url} resetKey={pid} className="result-box" onPrev={i > 0 ? () => setI(i - 1) : undefined} onNext={i < n - 1 ? () => setI(i + 1) : undefined} />
     </Screen>
   )
 }

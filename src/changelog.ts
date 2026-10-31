@@ -10,7 +10,31 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.14.1',
+    notes: {
+      en: [
+        'Scan preview: pinch or double-tap to zoom in and check small text, drag to move around, and swipe left or right to go between pages. Press and hold “Hold for original” to compare with the photo before the filter. The filter in use is shown on the preview',
+        'Opening a page of a saved document works the same way: pinch or double-tap to zoom, swipe to change page',
+        'Filter and page thumbnails now show the whole page instead of cutting off the sides of wide slides',
+        'Fixed: slides or whiteboards that already fill the photo (for example, a slide screenshot) were cropped to the part under the title bar, or to the title bar alone. The whole picture is now kept',
+      ],
+      zh: [
+        '扫描预览：双指或双击放大看清小字，拖动查看各处，左右滑动换页。按住「按住看原图」可以和没加滤镜的原照片对比。预览上会显示目前用的滤镜',
+        '打开已存文件的某一页也一样：双指或双击放大，左右滑动换页',
+        '滤镜和页面缩图改为显示整页，宽的投影片不会再被切掉两边',
+        '修正：已经占满整张照片的投影片或白板（例如投影片截图）会被裁成标题栏下面那块，或只剩标题栏。现在会保留整张',
+      ],
+      ms: [
+        'Pratonton imbasan: cubit atau ketik dua kali untuk zum dan semak teks kecil, seret untuk bergerak, dan leret ke kiri atau kanan untuk tukar halaman. Tekan dan tahan “Tekan untuk asal” untuk banding dengan foto sebelum penapis. Penapis yang digunakan ditunjukkan pada pratonton',
+        'Membuka halaman dokumen yang disimpan juga sama: cubit atau ketik dua kali untuk zum, leret untuk tukar halaman',
+        'Lakaran kecil penapis dan halaman kini menunjukkan seluruh halaman, tidak lagi memotong tepi slaid yang lebar',
+        'Dibaiki: slaid atau papan putih yang sudah memenuhi foto (contohnya tangkapan skrin slaid) dipangkas kepada bahagian di bawah bar tajuk, atau bar tajuk sahaja. Kini seluruh gambar dikekalkan',
+      ],
+    },
+  },
+  {
     version: '1.14.0',
+    released: '2026-10-31T15:11:19Z',
     notes: {
       en: [
         'New in Scan: Slides — point at the screen in class; with Auto on, a photo is taken each time a new slide appears (rest the phone, no duplicates). Each slide is cropped and cleaned of screen ripples (moiré), then saved as one document you can share as a PDF. If a crop misses part of the screen, fix one slide and tap Crop all',

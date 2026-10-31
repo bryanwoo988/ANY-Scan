@@ -575,6 +575,32 @@ export function detectQuadRGBA(rgba: Uint8ClampedArray, w: number, h: number): Q
   return snapped.map((p) => ({ x: Math.min(w, Math.max(0, p.x)), y: Math.min(h, Math.max(0, p.y)) })) as Quad
 }
 
+/**
+ * Number of the box's sides that lie along an edge of the picture. A projected slide or a
+ * whiteboard that fills the picture has no border of its own, and detection then finds a part
+ * of it instead (the white area under a dark title bar, or the title bar alone): such a box runs
+ * along two or more picture edges.
+ */
+export function sidesOnFrame(q: Quad, w: number, h: number, tol = 0.03): number {
+  const tx = w * tol
+  const ty = h * tol
+  let n = 0
+  for (let i = 0; i < 4; i++) {
+    const a = q[i]
+    const b = q[(i + 1) % 4]
+    if ((a.x < tx && b.x < tx) || (a.x > w - tx && b.x > w - tx) || (a.y < ty && b.y < ty) || (a.y > h - ty && b.y > h - ty)) n++
+  }
+  return n
+}
+
+/** Longer side over shorter side of a box (opposite sides averaged). */
+export function quadAspect(q: Quad): number {
+  const d = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
+  const wq = (d(q[0], q[1]) + d(q[3], q[2])) / 2
+  const hq = (d(q[0], q[3]) + d(q[1], q[2])) / 2
+  return Math.max(wq, hq) / Math.max(1e-6, Math.min(wq, hq))
+}
+
 /** Best-effort automatic detection of a document in a photo; coordinates are in `src` pixels. */
 export function detectDocument(src: HTMLCanvasElement): Quad | null {
   const s = Math.min(1, WORK_SIDE / Math.max(src.width, src.height))
