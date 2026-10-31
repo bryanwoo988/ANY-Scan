@@ -1,5 +1,5 @@
 // Long Screenshot: join screenshots taken while scrolling into one tall image.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Icon } from '../components/Icon'
 import { Screen } from '../components/ui'
 import { createDoc, defaultDocName } from '../lib/db'
@@ -150,25 +150,28 @@ export function StitchScreen() {
    * Moves one screenshot's edge at a join: the bottom of the upper one or the top of the lower one.
    * Like the Top and Bottom controls, the arrow is the direction the edge moves.
    */
-  const nudge = (seam: number, which: 'aEnd' | 'bStart', d: number) => {
-    if (!plan) return
-    const ranges = slices(
-      shots.map((s) => s.canvas.height),
-      plan,
-    )
-    const joins = plan.joins.map((j, i) => {
-      if (i !== seam) return j
-      if (which === 'aEnd') return { ...j, aEnd: Math.max(ranges[seam][0] + 1, Math.min(shots[seam].canvas.height, j.aEnd + d)) }
-      return { ...j, bStart: Math.max(0, Math.min(ranges[seam + 1][1] - 1, j.bStart + d)) }
+  // Updates build on the latest plan, so steps repeated quickly while a button is held all count.
+  const nudge = (seam: number, which: 'aEnd' | 'bStart', d: number) =>
+    setPlan((plan) => {
+      if (!plan) return plan
+      const ranges = slices(
+        shots.map((s) => s.canvas.height),
+        plan,
+      )
+      const joins = plan.joins.map((j, i) => {
+        if (i !== seam) return j
+        if (which === 'aEnd') return { ...j, aEnd: Math.max(ranges[seam][0] + 1, Math.min(shots[seam].canvas.height, j.aEnd + d)) }
+        return { ...j, bStart: Math.max(0, Math.min(ranges[seam + 1][1] - 1, j.bStart + d)) }
+      })
+      return { ...plan, joins }
     })
-    setPlan({ ...plan, joins })
-  }
   /** Moves the top or bottom edge of the long image; the arrows move the edge. */
-  const edge = (which: 'top' | 'bottom', d: number) => {
-    if (!plan) return
-    const h = shots[which === 'top' ? 0 : shots.length - 1].canvas.height
-    setPlan({ ...plan, [which]: Math.max(0, Math.min(Math.round(h * 0.6), plan[which] + d)) })
-  }
+  const edge = (which: 'top' | 'bottom', d: number) =>
+    setPlan((plan) => {
+      if (!plan) return plan
+      const h = shots[which === 'top' ? 0 : shots.length - 1].canvas.height
+      return { ...plan, [which]: Math.max(0, Math.min(Math.round(h * 0.6), plan[which] + d)) }
+    })
 
   const totalH = preview?.total ?? 0
   const w = shots[0]?.canvas.width ?? 0
@@ -283,23 +286,23 @@ export function StitchScreen() {
               <div className="stitch-edge top">
                 <div className="stitch-seam-pill">
                   <span>{t('stitchShotTop', { n: 1 })}</span>
-                  <button onClick={() => edge('top', -EDGE_STEP)} disabled={plan.top === 0} aria-label={t('stitchShowMore')}>
+                  <HoldButton step={(k) => edge('top', -EDGE_STEP * k)} disabled={plan.top === 0} aria-label={t('stitchShowMore')}>
                     ▲
-                  </button>
-                  <button onClick={() => edge('top', EDGE_STEP)} aria-label={t('stitchTrimMore')}>
+                  </HoldButton>
+                  <HoldButton step={(k) => edge('top', EDGE_STEP * k)} aria-label={t('stitchTrimMore')}>
                     ▼
-                  </button>
+                  </HoldButton>
                 </div>
               </div>
               <div className="stitch-edge bottom">
                 <div className="stitch-seam-pill">
                   <span>{t('stitchShotBottom', { n: shots.length })}</span>
-                  <button onClick={() => edge('bottom', EDGE_STEP)} aria-label={t('stitchTrimMore')}>
+                  <HoldButton step={(k) => edge('bottom', EDGE_STEP * k)} aria-label={t('stitchTrimMore')}>
                     ▲
-                  </button>
-                  <button onClick={() => edge('bottom', -EDGE_STEP)} disabled={plan.bottom === 0} aria-label={t('stitchShowMore')}>
+                  </HoldButton>
+                  <HoldButton step={(k) => edge('bottom', -EDGE_STEP * k)} disabled={plan.bottom === 0} aria-label={t('stitchShowMore')}>
                     ▼
-                  </button>
+                  </HoldButton>
                 </div>
               </div>
               {preview.seams.map((y, i) => (
@@ -307,21 +310,21 @@ export function StitchScreen() {
                   {!plan.joins[i].matched && <span className="stitch-seam-warn">{t('stitchNoOverlap')}</span>}
                   <div className="stitch-seam-pill above">
                     <span>{t('stitchShotBottom', { n: i + 1 })}</span>
-                    <button onClick={() => nudge(i, 'aEnd', -STEP)} aria-label={t('stitchTrimMore')}>
+                    <HoldButton step={(k) => nudge(i, 'aEnd', -STEP * k)} aria-label={t('stitchTrimMore')}>
                       ▲
-                    </button>
-                    <button onClick={() => nudge(i, 'aEnd', STEP)} aria-label={t('stitchShowMore')}>
+                    </HoldButton>
+                    <HoldButton step={(k) => nudge(i, 'aEnd', STEP * k)} aria-label={t('stitchShowMore')}>
                       ▼
-                    </button>
+                    </HoldButton>
                   </div>
                   <div className="stitch-seam-pill below">
                     <span>{t('stitchShotTop', { n: i + 2 })}</span>
-                    <button onClick={() => nudge(i, 'bStart', -STEP)} aria-label={t('stitchShowMore')}>
+                    <HoldButton step={(k) => nudge(i, 'bStart', -STEP * k)} aria-label={t('stitchShowMore')}>
                       ▲
-                    </button>
-                    <button onClick={() => nudge(i, 'bStart', STEP)} aria-label={t('stitchTrimMore')}>
+                    </HoldButton>
+                    <HoldButton step={(k) => nudge(i, 'bStart', STEP * k)} aria-label={t('stitchTrimMore')}>
                       ▼
-                    </button>
+                    </HoldButton>
                   </div>
                 </div>
               ))}
@@ -330,5 +333,58 @@ export function StitchScreen() {
         )}
       </div>
     </Screen>
+  )
+}
+
+/**
+ * A ▲ / ▼ button that repeats while held: one step on press, then after a short pause it keeps
+ * going, faster the longer it's held. `step(k)` moves by k steps.
+ */
+function HoldButton({ step, disabled, children, ...rest }: { step: (k: number) => void; disabled?: boolean; children: ReactNode; 'aria-label'?: string }) {
+  const latest = useRef(step)
+  latest.current = step
+  const timer = useRef(0)
+  const stop = () => {
+    window.clearTimeout(timer.current)
+    timer.current = 0
+    window.removeEventListener('pointerup', stop)
+    window.removeEventListener('pointercancel', stop)
+  }
+  useEffect(() => stop, [])
+  // Stop as soon as the edge can't move further (the button turns disabled under the finger).
+  useEffect(() => {
+    if (disabled) stop()
+  }, [disabled])
+  const start = (e: React.PointerEvent) => {
+    e.preventDefault()
+    if (disabled || timer.current) return
+    // The button moves with the edge it controls, away from under a still finger or mouse; keep
+    // the press until it's lifted rather than stopping when the pointer is no longer over it.
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    latest.current(1)
+    let n = 0
+    const tick = () => {
+      n++
+      latest.current(n < 8 ? 1 : n < 20 ? 3 : 8)
+      timer.current = window.setTimeout(tick, 60)
+    }
+    timer.current = window.setTimeout(tick, 350)
+    window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', stop)
+  }
+  return (
+    <button
+      {...rest}
+      className="hold-btn"
+      disabled={disabled}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      // Keyboard and assistive tech "click" without a pointer: one step.
+      onClick={(e) => e.detail === 0 && latest.current(1)}
+    >
+      {children}
+    </button>
   )
 }

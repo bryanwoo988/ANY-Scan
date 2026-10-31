@@ -10,7 +10,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.12.3',
+    notes: {
+      en: ['Long Screenshot: press and hold ▲ / ▼ to move an edge quickly — it speeds up the longer you hold and stops when you let go. A tap still moves one small step'],
+      zh: ['长截图：按住 ▲ / ▼ 就能快速移动边缘——按得越久移动越快，放开就停。点一下还是移动一小格'],
+      ms: ['Tangkapan Skrin Panjang: tekan dan tahan ▲ / ▼ untuk menggerakkan tepi dengan pantas — semakin lama ditahan semakin laju, dan berhenti apabila dilepaskan. Ketik sekali masih bergerak satu langkah kecil'],
+    },
+  },
+  {
     version: '1.12.2',
+    released: '2026-10-31T08:48:28Z',
     notes: {
       en: [
         'Long Screenshot: every screenshot now has its own ▲ / ▼ for its top and bottom edge (the arrow is the way the edge moves), so each join can be fixed exactly',
