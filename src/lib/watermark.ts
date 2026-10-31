@@ -2,9 +2,9 @@
 // either on the whole page or only on the cards/photos found on it (e.g. an IC copied onto A4).
 import { createCanvas, ctx2d } from './image'
 
-export type WmStyle = 'diagonal' | 'strike' | 'corner' | 'stamp' | 'tiled'
+export type WmStyle = 'diagonal' | 'corners' | 'strike' | 'corner' | 'stamp' | 'tiled'
 export type WmPos = 'tl' | 'tr' | 'bl' | 'br' | 'c'
-export const WM_STYLES: WmStyle[] = ['diagonal', 'strike', 'corner', 'stamp', 'tiled']
+export const WM_STYLES: WmStyle[] = ['diagonal', 'corners', 'strike', 'corner', 'stamp', 'tiled']
 
 export interface WmOptions {
   style: WmStyle
@@ -162,14 +162,42 @@ function drawIn(ctx: CanvasRenderingContext2D, r: Rect, o: WmOptions, pageArea: 
   }
 
   ctx.save()
-  ctx.beginPath()
-  ctx.rect(r.x, r.y, r.w, r.h)
-  ctx.clip()
+  // "Two corners" runs over the card's edge onto the paper on purpose; every other style stays on the area.
+  if (o.style !== 'corners') {
+    ctx.beginPath()
+    ctx.rect(r.x, r.y, r.w, r.h)
+    ctx.clip()
+  }
   ctx.fillStyle = ctx.strokeStyle = o.color
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  if (o.style === 'tiled') {
+  if (o.style === 'corners') {
+    // Slanted text across two opposite corners, half on the card and half on the paper, as people
+    // write on IC photocopies so a corner can't be cut off cleanly. pos tl/br → ↖↘ (rising), tr/bl → ↗↙.
+    const rising = o.pos === 'tl' || o.pos === 'br' || o.pos === 'c'
+    const a = ((rising ? -1 : 1) * 33 * Math.PI) / 180
+    font(min * 0.16 * k)
+    const fs = Math.min(min * 0.16 * k, (min * 0.16 * k * r.w * 0.7) / Math.max(1, block(min * 0.16 * k).w))
+    const ix = r.w * 0.12
+    const iy = r.h * 0.12
+    const spots = rising
+      ? [
+          [r.x + ix, r.y + iy],
+          [r.x + r.w - ix, r.y + r.h - iy],
+        ]
+      : [
+          [r.x + r.w - ix, r.y + iy],
+          [r.x + ix, r.y + r.h - iy],
+        ]
+    for (const [x, y] of spots) {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(a)
+      drawLines(fs)
+      ctx.restore()
+    }
+  } else if (o.style === 'tiled') {
     const fs = min * (pageArea ? 0.06 : 0.09) * k
     font(fs)
     const tw = ctx.measureText(one).width + fs * 2

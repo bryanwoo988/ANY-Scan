@@ -6,7 +6,7 @@ import { createDoc, defaultDocName, getPage, getPages, replacePage, type PageRec
 import { buildDocx, safeFileName } from '../lib/export'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d } from '../lib/image'
 import { drawStamp } from '../lib/stamp'
-import { DEFAULT_WM, detectRegions, drawWatermark, WM_STYLES, type Rect, type WmOptions, type WmPos } from '../lib/watermark'
+import { DEFAULT_WM, detectRegions, drawWatermark, WM_STYLES, type Rect, type WmOptions, type WmPos, type WmStyle } from '../lib/watermark'
 import { PresetBar, StampContentForm, TemplatePicker, useStampOptions, useStampPrefs, type Place } from '../components/StampEditor'
 import { OCR_LANGS, recognize, type OcrLang } from '../lib/ocr'
 import { loadJSON, saveJSON } from '../lib/settings'
@@ -382,12 +382,12 @@ const WM_KEY = 'anyscan.wmPrefs'
 const DATE_LOCALE = { en: 'en-GB', zh: 'zh-CN', ms: 'ms-MY' } as const
 
 /** Bounding box of `rs` with a margin, kept inside a w×h canvas. */
-function around(rs: Rect[], w: number, h: number): Rect {
+function around(rs: Rect[], w: number, h: number, margin = 0.08): Rect {
   const x0 = Math.min(...rs.map((r) => r.x))
   const y0 = Math.min(...rs.map((r) => r.y))
   const x1 = Math.max(...rs.map((r) => r.x + r.w))
   const y1 = Math.max(...rs.map((r) => r.y + r.h))
-  const m = Math.max(x1 - x0, y1 - y0) * 0.08
+  const m = Math.max(x1 - x0, y1 - y0) * margin
   const x = Math.max(0, x0 - m)
   const y = Math.max(0, y0 - m)
   return { x, y, w: Math.min(w, x1 + m) - x, h: Math.min(h, y1 + m) - y }
@@ -431,9 +431,14 @@ export function WatermarkScreen({ docId }: { docId: string }) {
   const regions = useMemo(() => (base ? detectRegions(base) : []), [base])
   const onContent = prefs.area === 'content' && regions.length > 0
   // Zoom the previews in on the cards when that's where the watermark goes.
-  const crop = useMemo(() => (base ? (onContent ? around(regions, base.width, base.height) : { x: 0, y: 0, w: base.width, h: base.height }) : null), [base, regions, onContent])
+  // "Two corners" reaches past the card, so leave more paper around it.
+  const margin = (style: WmStyle) => (style === 'corners' ? 0.2 : 0.08)
+  const crop = useMemo(() => (base ? (onContent ? around(regions, base.width, base.height, margin(prefs.style)) : { x: 0, y: 0, w: base.width, h: base.height }) : null), [base, regions, onContent, prefs.style])
   // Thumbnails show just the first card so the style is readable at that size.
-  const thumb = useMemo(() => (base && onContent ? { crop: around(regions.slice(0, 1), base.width, base.height), regions: regions.slice(0, 1) } : { crop, regions }), [base, onContent, regions, crop])
+  const thumbs = useMemo(
+    () => new Map(WM_STYLES.map((st) => [st, base && onContent ? { crop: around(regions.slice(0, 1), base.width, base.height, margin(st)), regions: regions.slice(0, 1) } : { crop: crop!, regions }])),
+    [base, onContent, regions, crop],
+  )
   const sub = prefs.date ? new Date().toLocaleDateString(DATE_LOCALE[lang]) : undefined
   const opts: WmOptions = { ...prefs, text: text || t('watermarkSample'), sub }
 
@@ -487,7 +492,7 @@ export function WatermarkScreen({ docId }: { docId: string }) {
           {base &&
             crop &&
             WM_STYLES.map((st) => (
-              <StyleCard key={st} base={base} crop={thumb.crop!} regions={thumb.regions} o={{ ...opts, style: st }} label={t(`wm.${st}`)} on={prefs.style === st} onClick={() => update({ style: st })} />
+              <StyleCard key={st} base={base} crop={thumbs.get(st)!.crop} regions={thumbs.get(st)!.regions} o={{ ...opts, style: st }} label={t(`wm.${st}`)} on={prefs.style === st} onClick={() => update({ style: st })} />
             ))}
         </div>
         {regions.length > 0 && (
@@ -499,6 +504,23 @@ export function WatermarkScreen({ docId }: { docId: string }) {
               { value: 'page', label: t('wmWholePage') },
             ]}
           />
+        )}
+        {prefs.style === 'corners' && (
+          <div className="row gap wm-pos" role="radiogroup" aria-label={t('position')}>
+            {(
+              [
+                ['tl', '↖ ↘', t('wmCornersTlBr')],
+                ['tr', '↗ ↙', t('wmCornersTrBl')],
+              ] as const
+            ).map(([p, label, aria]) => {
+              const on = p === 'tl' ? prefs.pos !== 'tr' && prefs.pos !== 'bl' : prefs.pos === 'tr' || prefs.pos === 'bl'
+              return (
+                <button key={p} role="radio" aria-checked={on} className={`chip ${on ? 'on' : ''}`} onClick={() => update({ pos: p })} aria-label={aria}>
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         )}
         {(prefs.style === 'corner' || prefs.style === 'stamp') && (
           <>

@@ -10,7 +10,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.9.1',
+    notes: {
+      en: ['Watermark: new "Two corners" style — slanted text across the top-left and bottom-right corners of the card (or top-right and bottom-left), half on the card and half on the paper, the way people mark IC copies'],
+      zh: ['水印：新增「对角」款式——斜写的字跨过证件的左上角和右下角（或右上角和左下角），一半在证件上、一半在纸上，就像大家在 IC 复印件上写的那样'],
+      ms: ['Tera air: gaya baharu "Dua penjuru" — teks condong merentasi penjuru atas kiri dan bawah kanan kad (atau atas kanan dan bawah kiri), separuh pada kad dan separuh pada kertas, seperti yang biasa ditulis pada salinan IC'],
+    },
+  },
+  {
     version: '1.9.0',
+    released: '2026-10-31T04:10:33Z',
     notes: {
       en: [
         'Watermark: 5 styles to choose from, each previewed on your own page — Diagonal, Across lines, Corner, Stamp and Repeat',
