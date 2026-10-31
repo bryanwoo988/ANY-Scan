@@ -7,6 +7,7 @@ import type { TKey } from '../i18n'
 import { detectQuadRGBA } from '../lib/detect'
 import { approach, QuadTracker } from '../lib/quadTracker'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d, type Quad } from '../lib/image'
+import { SlideWatcher, thumb, THUMB_H, THUMB_W } from '../lib/slides'
 import { decodeCanvas } from '../lib/qr'
 import { useApp } from '../state'
 import { loadJSON, saveJSON } from '../lib/settings'
@@ -16,12 +17,15 @@ import { CombinationChips, locate, PresetBar, StampContentForm, TemplatePicker, 
 import { Segmented } from '../components/ui'
 import { addQrHistory, QrResult } from './Qr'
 
-export type CamMode = 'ocr' | 'idcard' | 'scan' | 'word' | 'qr' | 'idphoto' | 'timestamp'
+export type CamMode = 'ocr' | 'idcard' | 'scan' | 'slides' | 'whiteboard' | 'mega' | 'word' | 'qr' | 'idphoto' | 'timestamp'
 
 const MODES: { id: CamMode; label: TKey }[] = [
   { id: 'ocr', label: 'tool.ocr' },
   { id: 'idcard', label: 'tool.idCard' },
   { id: 'scan', label: 'mode.scan' },
+  { id: 'slides', label: 'tool.slides' },
+  { id: 'whiteboard', label: 'tool.whiteboard' },
+  { id: 'mega', label: 'tool.mega' },
   { id: 'word', label: 'tool.toWord' },
   { id: 'qr', label: 'section.qr' },
   { id: 'idphoto', label: 'tool.idPhoto' },
@@ -31,7 +35,11 @@ const MODES: { id: CamMode; label: TKey }[] = [
 const ZOOM_STEPS = [1, 2, 3]
 
 /** Modes that photograph a document and benefit from the live outline. */
-const DOC_MODES: CamMode[] = ['scan', 'idcard', 'ocr', 'word']
+const DOC_MODES: CamMode[] = ['scan', 'whiteboard', 'slides', 'idcard', 'ocr', 'word']
+/** Modes with the Single / Batch choice. */
+const BATCH_CHOICE: CamMode[] = ['scan', 'whiteboard']
+/** Modes that always collect several photos before moving on. */
+const ALWAYS_BATCH: CamMode[] = ['slides', 'mega']
 
 type Facing = 'environment' | 'user'
 
@@ -140,7 +148,10 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
   const [lastStamped, setLastStamped] = useState<{ id: string; url: string } | null>(null)
   const stampRef = useRef<HTMLCanvasElement>(null)
   const [mode, setMode] = useState<CamMode>(initialMode)
+  const modeRef = useRef(mode)
+  modeRef.current = mode
   const [batch, setBatch] = useState(false)
+  const batching = ALWAYS_BATCH.includes(mode) || (BATCH_CHOICE.includes(mode) && batch)
   const [shots, setShots] = useState<File[]>([])
   const [hints, setHints] = useState<(Quad | null)[]>([])
   const [shotUrl, setShotUrl] = useState<string>()
@@ -162,7 +173,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     if (hwZoom) applyHwZoom(Math.max(hwZoom.min, v))
   }
   useEffect(() => setZoomState(1), [facing])
-  const [prefs, setPrefs] = useState(() => ({ grid: false, timer: 0, auto: false, ...loadJSON<Partial<{ grid: boolean; timer: number; auto: boolean }>>('anyscan.camera', {}) }))
+  const [prefs, setPrefs] = useState(() => ({ grid: false, timer: 0, auto: false, slidesAuto: true, ...loadJSON<Partial<{ grid: boolean; timer: number; auto: boolean; slidesAuto: boolean }>>('anyscan.camera', {}) }))
   const setPref = (p: Partial<typeof prefs>) =>
     setPrefs((s) => {
       const n = { ...s, ...p }
@@ -310,6 +321,11 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     switch (m) {
       case 'scan':
         return replace('scan', { files, hints })
+      case 'whiteboard':
+      case 'slides':
+        return replace('scan', { files, hints, filter: m, kind: m })
+      case 'mega':
+        return replace('mega', { files })
       case 'idcard':
         return replace('idcard', { files: files.slice(0, 2) })
       case 'ocr':
@@ -375,16 +391,21 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     toast(t('saved'))
   }
 
-  const capture = async () => {
+  /** `auto`: taken by the Slides watcher, which has already noted this slide. */
+  const capture = async (auto = false) => {
     const v = videoRef.current
     if (!v || state !== 'live' || busy || mode === 'qr') return
+    // A slide shot by hand: note it so the watcher doesn't take the same slide again.
+    if (mode === 'slides' && !auto) watcherRef.current.taken(slideThumb(v))
     setBusy(true)
     setFlash((n) => n + 1)
     try {
       if (mode === 'timestamp') return await shootStamped(v)
       const f = await grabFrame(v, dzRef.current)
+      // The mode was changed while the photo was being taken (e.g. an automatic slide shot).
+      if (modeRef.current !== mode) return
       const hint = targetRef.current
-      if (mode === 'scan' && batch) {
+      if (batching) {
         setShots((s) => [...s, f])
         setHints((h) => [...h, hint])
       }
@@ -435,6 +456,34 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked, prefs.auto, mode, busy, countdown])
 
+  // Slides: with Auto on, take a photo whenever a new slide has appeared and the picture is steady.
+  const watcherRef = useRef(new SlideWatcher())
+  const thumbCanvas = useRef<HTMLCanvasElement | null>(null)
+  const slideThumb = (v: HTMLVideoElement) => {
+    // Drawn at 4× the thumbnail size and averaged down: drawImage alone samples single pixels.
+    const c = (thumbCanvas.current ??= createCanvas(THUMB_W * 4, THUMB_H * 4))
+    const z = zoomRegion(v, dzRef.current)
+    const x = ctx2d(c)
+    x.imageSmoothingQuality = 'high'
+    x.drawImage(v, z.x, z.y, z.w, z.h, 0, 0, c.width, c.height)
+    return thumb(x.getImageData(0, 0, c.width, c.height).data, c.width)
+  }
+  const captureRef = useRef<() => void>(() => {})
+  captureRef.current = () => void capture(true)
+  const busyRef = useRef(false)
+  busyRef.current = busy || countdown != null
+  useEffect(() => {
+    if (state !== 'live' || mode !== 'slides' || !prefs.slidesAuto) return
+    const w = watcherRef.current
+    const id = window.setInterval(() => {
+      const v = videoRef.current
+      if (!v?.videoWidth || busyRef.current) return
+      if (w.push(slideThumb(v))) captureRef.current()
+    }, 350)
+    return () => window.clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, mode, prefs.slidesAuto, videoRef])
+
   // Pinch to zoom on the preview (two fingers); one finger still swipes between modes.
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pinch = useRef<{ d: number; z: number } | null>(null)
@@ -445,6 +494,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     setShots([])
     setHints([])
     setQrText(null)
+    watcherRef.current.reset()
     setMode(m)
   }
 
@@ -452,7 +502,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const idx = MODES.findIndex((m) => m.id === mode)
 
-  const multiPick = mode === 'scan' || mode === 'ocr' || mode === 'word' || mode === 'idcard'
+  const multiPick = mode !== 'qr' && mode !== 'idphoto' && mode !== 'timestamp'
   const pickAlbum = () => pickFiles({ accept: 'image/*', multiple: multiPick }).then((f) => deliver(f))
   const systemCamera = () => {
     setMenu(false)
@@ -572,8 +622,16 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
             {t('cam.auto')}
           </button>
         )}
+        {mode === 'slides' && (
+          <button className={`cam-auto ${prefs.slidesAuto ? 'on' : ''}`} onClick={() => setPref({ slidesAuto: !prefs.slidesAuto })} aria-pressed={prefs.slidesAuto}>
+            {t('cam.auto')}
+          </button>
+        )}
+        {(mode === 'slides' || mode === 'mega') && shots.length === 0 && (
+          <div className="cam-tip">{mode === 'slides' ? (prefs.slidesAuto ? t('slidesTipAuto') : t('slidesTip')) : t('megaTip')}</div>
+        )}
         {state === 'live' && (
-          <div className={`cam-zoom ${mode === 'scan' ? 'above-seg' : ''} ${mode === 'timestamp' ? 'side' : ''}`}>
+          <div className={`cam-zoom ${BATCH_CHOICE.includes(mode) ? 'above-seg' : ''} ${mode === 'timestamp' ? 'side' : ''}`}>
             {ZOOM_STEPS.filter((z) => z <= maxZoom).map((z, i, steps) => {
               // The highlighted button is the step at or below the current zoom; while pinching
               // between steps it shows the exact value (e.g. 1.7×).
@@ -586,7 +644,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
             })}
           </div>
         )}
-        {mode === 'scan' && (
+        {BATCH_CHOICE.includes(mode) && (
           <div className="cam-seg" role="radiogroup">
             <button role="radio" aria-checked={!batch} className={!batch ? 'on' : ''} onClick={() => setBatch(false)}>
               {t('single')}
@@ -624,7 +682,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
               <button className="cam-thumb" onClick={() => push('doc', { id: lastStamped.id })} aria-label={t('view')}>
                 <img src={lastStamped.url} alt="" />
               </button>
-            ) : shots.length > 0 && mode === 'scan' ? (
+            ) : shots.length > 0 && batching ? (
               <button className="cam-thumb" onClick={() => deliver(shots, mode, hints)} aria-label={t('doneN', { n: shots.length })}>
                 {shotUrl && <img src={shotUrl} alt="" />}
                 <span className="cam-count">{shots.length}</span>
@@ -646,7 +704,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
             <span />
           </button>
           <div className="cam-side">
-            {shots.length > 0 && mode === 'scan' ? (
+            {shots.length > 0 && batching ? (
               <button className="cam-done" onClick={() => deliver(shots, mode, hints)}>
                 <Icon name="check" size={22} stroke={2.6} />
               </button>

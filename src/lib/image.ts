@@ -3,9 +3,9 @@
 
 export type Point = { x: number; y: number }
 export type Quad = [Point, Point, Point, Point] // top-left, top-right, bottom-right, bottom-left
-export type FilterName = 'original' | 'enhance' | 'magic' | 'gray' | 'bw'
+export type FilterName = 'original' | 'enhance' | 'magic' | 'gray' | 'bw' | 'whiteboard' | 'slides'
 
-export const FILTERS: FilterName[] = ['original', 'magic', 'enhance', 'gray', 'bw']
+export const FILTERS: FilterName[] = ['original', 'magic', 'enhance', 'gray', 'bw', 'whiteboard', 'slides']
 
 /** Longest side we keep for source photos. 12 MP phone photos would exhaust memory on older phones. */
 export const MAX_SOURCE_SIDE = 3000
@@ -233,6 +233,8 @@ export function filterPixels(d: Uint8ClampedArray, w: number, h: number, f: Filt
     }
     return
   }
+  if (f === 'whiteboard') return whiteboardPixels(d, w, h)
+  if (f === 'slides') return slidePixels(d, w, h)
   if (f === 'bw') {
     // Bradley adaptive threshold: robust against uneven lighting and shadows.
     const gray = new Float64Array(n)
@@ -305,6 +307,173 @@ export function filterPixels(d: Uint8ClampedArray, w: number, h: number, f: Filt
         d[i + k] = Math.pow(v, 1.6) * 255
       }
     }
+  }
+}
+
+/** In-place box blur of a w×h float plane (radius r, separable, O(n) per pass). */
+export function boxBlur(a: Float32Array, w: number, h: number, r: number): void {
+  if (r < 1) return
+  const tmp = new Float32Array(Math.max(w, h))
+  const pass = (len: number, count: number, stride: number, step: number) => {
+    for (let j = 0; j < count; j++) {
+      const o = j * stride
+      let sum = 0
+      for (let i = -r; i <= r; i++) sum += a[o + Math.min(len - 1, Math.max(0, i)) * step]
+      for (let i = 0; i < len; i++) {
+        tmp[i] = sum / (2 * r + 1)
+        sum += a[o + Math.min(len - 1, i + r + 1) * step] - a[o + Math.max(0, i - r) * step]
+      }
+      for (let i = 0; i < len; i++) a[o + i * step] = tmp[i]
+    }
+  }
+  pass(w, h, w, 1)
+  pass(h, w, 1, w)
+}
+
+/** Three box blurs approximate a Gaussian with sigma ≈ r. */
+function gaussBlur(a: Float32Array, w: number, h: number, r: number): void {
+  const b = Math.max(1, Math.round(r * 0.8))
+  if (r < 0.5) return
+  for (let i = 0; i < 3; i++) boxBlur(a, w, h, b)
+}
+
+/**
+ * Whiteboard: the board's own brightness is estimated per region (bright percentile of each
+ * block, then the median of its neighbours so blocks full of writing or a glare spot don't
+ * spoil it) and divided out. That flattens uneven light, shadows and glare to plain white;
+ * what is left darker than the board is marker ink, which is deepened and kept in colour.
+ */
+function whiteboardPixels(d: Uint8ClampedArray, w: number, h: number): void {
+  const bs = Math.max(6, Math.round(Math.max(w, h) / 28))
+  const gw = Math.ceil(w / bs)
+  const gh = Math.ceil(h / bs)
+  const raw = new Float32Array(gw * gh * 3)
+  const lum = new Float32Array(gw * gh)
+  for (let gy = 0; gy < gh; gy++)
+    for (let gx = 0; gx < gw; gx++) {
+      const vals: number[] = []
+      for (let y = gy * bs; y < Math.min(h, (gy + 1) * bs); y += 2) for (let x = gx * bs; x < Math.min(w, (gx + 1) * bs); x += 2) vals.push((y * w + x) * 4)
+      vals.sort((a, b) => luma(d[a], d[a + 1], d[a + 2]) - luma(d[b], d[b + 1], d[b + 2]))
+      // The 80th percentile: above the ink, below small specular highlights.
+      const pick = vals[Math.floor(vals.length * 0.8)] ?? vals[vals.length - 1]
+      const g = gy * gw + gx
+      for (let k = 0; k < 3; k++) raw[g * 3 + k] = Math.max(30, d[pick + k])
+      lum[g] = luma(d[pick], d[pick + 1], d[pick + 2])
+    }
+  // Median (by brightness) of each 3×3 neighbourhood.
+  const grid = new Float32Array(gw * gh * 3)
+  for (let gy = 0; gy < gh; gy++)
+    for (let gx = 0; gx < gw; gx++) {
+      const nb: number[] = []
+      for (let y = Math.max(0, gy - 1); y <= Math.min(gh - 1, gy + 1); y++) for (let x = Math.max(0, gx - 1); x <= Math.min(gw - 1, gx + 1); x++) nb.push(y * gw + x)
+      nb.sort((a, b) => lum[a] - lum[b])
+      const m = nb[nb.length >> 1]
+      for (let k = 0; k < 3; k++) grid[(gy * gw + gx) * 3 + k] = raw[m * 3 + k]
+    }
+  for (let y = 0; y < h; y++) {
+    const gyf = Math.min(gh - 1, Math.max(0, y / bs - 0.5))
+    const gy0 = Math.floor(gyf)
+    const gy1 = Math.min(gh - 1, gy0 + 1)
+    const fy = gyf - gy0
+    for (let x = 0; x < w; x++) {
+      const gxf = Math.min(gw - 1, Math.max(0, x / bs - 0.5))
+      const gx0 = Math.floor(gxf)
+      const gx1 = Math.min(gw - 1, gx0 + 1)
+      const fx = gxf - gx0
+      const i = (y * w + x) * 4
+      const n = [0, 0, 0]
+      for (let k = 0; k < 3; k++) {
+        const a = grid[(gy0 * gw + gx0) * 3 + k]
+        const b = grid[(gy0 * gw + gx1) * 3 + k]
+        const c = grid[(gy1 * gw + gx0) * 3 + k]
+        const e = grid[(gy1 * gw + gx1) * 3 + k]
+        const bg = (a + (b - a) * fx) * (1 - fy) + (c + (e - c) * fx) * fy
+        n[k] = Math.min(1, d[i + k] / bg)
+      }
+      // Brightness: within 10% of the board is board (noise, faint glare edges); below that, ink,
+      // deepened. Colour is carried over on top so blue, red and green markers stay themselves.
+      const yv = luma(n[0], n[1], n[2])
+      const tt = Math.min(1, Math.max(0, (yv - 0.04) / 0.86))
+      const yo = tt ** 1.5
+      for (let k = 0; k < 3; k++) d[i + k] = (yo + (n[k] - yv) * 1.3) * 255
+    }
+  }
+}
+
+/**
+ * Slides and screens: photos of a display carry moiré — colour ripples from the camera sensor
+ * beating against the screen's pixel grid — and fine screen-door texture. The colour is blurred
+ * strongly (that is where most of the moiré is) and the brightness lightly, which removes detail
+ * finer than the text; the text edges are then sharpened at a larger scale, and the background
+ * is pushed to plain white (or black on a dark theme) so faint ripples left on it disappear.
+ */
+function slidePixels(d: Uint8ClampedArray, w: number, h: number): void {
+  const n = w * h
+  const L = Math.max(w, h)
+  const Y = new Float32Array(n)
+  const Cb = new Float32Array(n)
+  const Cr = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    const r = d[i * 4]
+    const g = d[i * 4 + 1]
+    const b = d[i * 4 + 2]
+    Y[i] = luma(r, g, b)
+    Cb[i] = b - Y[i]
+    Cr[i] = r - Y[i]
+  }
+  // Colour detail matters little to the eye, so the colour is blurred hard.
+  const rc = Math.max(3, L / 250)
+  gaussBlur(Cb, w, h, rc)
+  gaussBlur(Cr, w, h, rc)
+  gaussBlur(Y, w, h, Math.max(0.8, L / 1200))
+  // Unsharp mask at text scale.
+  const low = Y.slice()
+  gaussBlur(low, w, h, Math.max(2, L / 400))
+  for (let i = 0; i < n; i++) Y[i] += (Y[i] - low[i]) * 0.7
+  // Contrast: the slide background (the most common brightness) becomes plain white — or plain
+  // black on a dark theme — including the ripples left on it.
+  const hist = new Float64Array(256)
+  for (let i = 0; i < n; i++) hist[Math.min(255, Math.max(0, Y[i] | 0))]++
+  let mode = 0
+  for (let v = 0, best = -1; v < 256; v++) {
+    let s5 = 0
+    for (let k = Math.max(0, v - 4); k <= Math.min(255, v + 4); k++) s5 += hist[k]
+    if (s5 > best) {
+      best = s5
+      mode = v
+    }
+  }
+  const pct = (p: number) => {
+    let acc = 0
+    for (let v = 0; v < 256; v++) if ((acc += hist[v]) > n * p) return v
+    return 255
+  }
+  // Spread of the background, from the side of the mode away from the text.
+  const side = (up: boolean) => {
+    let s2 = 0
+    let c = 0
+    for (let v = mode; up ? v < 256 : v >= 0; v += up ? 1 : -1) {
+      s2 += hist[v] * (v - mode) ** 2
+      c += hist[v]
+    }
+    return Math.sqrt(s2 / Math.max(1, c))
+  }
+  let lo = pct(0.005)
+  let hi = pct(0.995)
+  if (mode > 140) hi = Math.max(lo + 40, mode - 2.2 * side(true))
+  else if (mode < 100) lo = Math.min(hi - 40, mode + 2.2 * side(false))
+  const range = Math.max(32, hi - lo)
+  for (let i = 0; i < n; i++) {
+    const y = ((Y[i] - lo) / range) * 255
+    const k = 255 / range
+    const cb = Cb[i] * k * 1.1
+    const cr = Cr[i] * k * 1.1
+    const r = y + cr
+    const b = y + cb
+    const g = (y - 0.299 * r - 0.114 * b) / 0.587
+    d[i * 4] = r
+    d[i * 4 + 1] = g
+    d[i * 4 + 2] = b
   }
 }
 

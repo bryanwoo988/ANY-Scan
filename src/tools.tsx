@@ -7,7 +7,7 @@ import { createDoc, defaultDocName } from './lib/db'
 import { importPdf, PdfPasswordError } from './lib/export'
 
 export type ToolId =
-  | 'smartScan' | 'idCard' | 'ocr' | 'idPhoto' | 'timestamp' | 'stitch'
+  | 'smartScan' | 'idCard' | 'ocr' | 'idPhoto' | 'timestamp' | 'stitch' | 'slides' | 'whiteboard' | 'mega'
   | 'importImages' | 'importFiles'
   | 'toWord' | 'pdfToWord' | 'pdfToPpt' | 'toExcel' | 'pdfToImages' | 'longImage'
   | 'sign' | 'watermark' | 'merge' | 'extract' | 'reorder' | 'lock' | 'compress'
@@ -31,6 +31,9 @@ export const TOOLS: Record<ToolId, Tool> = {
   idPhoto: { id: 'idPhoto', icon: 'idphoto', color: C.blue, label: 'tool.idPhoto' },
   timestamp: { id: 'timestamp', icon: 'clock', color: C.blue, label: 'tool.timestamp' },
   stitch: { id: 'stitch', icon: 'stitch', color: '#9b6bff', label: 'tool.stitch', isNew: true },
+  slides: { id: 'slides', icon: 'slides', color: C.orange, label: 'tool.slides', isNew: true },
+  whiteboard: { id: 'whiteboard', icon: 'whiteboard', color: C.teal, label: 'tool.whiteboard', isNew: true },
+  mega: { id: 'mega', icon: 'mega', color: C.pink, label: 'tool.mega', isNew: true },
   importImages: { id: 'importImages', icon: 'image', color: C.teal, label: 'tool.importImages' },
   importFiles: { id: 'importFiles', icon: 'folder', color: C.blue, label: 'tool.importFiles' },
   toWord: { id: 'toWord', icon: 'word', color: C.blue, label: 'tool.toWord' },
@@ -53,7 +56,7 @@ export const TOOLS: Record<ToolId, Tool> = {
 }
 
 export const SECTIONS: { title: TKey; tools: ToolId[] }[] = [
-  { title: 'section.scan', tools: ['smartScan', 'idCard', 'ocr', 'idPhoto', 'timestamp', 'stitch'] },
+  { title: 'section.scan', tools: ['smartScan', 'idCard', 'ocr', 'idPhoto', 'timestamp', 'stitch', 'slides', 'whiteboard', 'mega'] },
   { title: 'section.qr', tools: ['qrScan', 'qrCreate', 'qr'] },
   { title: 'section.import', tools: ['importImages', 'importFiles'] },
   { title: 'section.convert', tools: ['pdfToWord', 'pdfToPpt', 'toExcel', 'toWord', 'pdfToImages', 'longImage'] },
@@ -165,6 +168,12 @@ export function useTools() {
         return push('pick', { title: 'tool.pdfToPpt', next: 'convert', nextParams: { target: 'pptx' }, passFile: true })
       case 'stitch':
         return push('stitch')
+      case 'slides':
+        return push('camera', { mode: 'slides' })
+      case 'whiteboard':
+        return push('camera', { mode: 'whiteboard' })
+      case 'mega':
+        return push('mega')
       case 'toExcel':
         return push('excel')
       case 'pdfToImages':

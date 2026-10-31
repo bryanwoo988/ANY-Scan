@@ -3421,3 +3421,50 @@ p {
   margin-top: 8px;
   text-align: left;
 }
+
+/* Slides / Mega Scan tips over the camera preview */
+.cam-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  width: min(86%, 420px);
+  padding: 9px 14px;
+  border-radius: 14px;
+  background: rgba(20, 20, 20, 0.72);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Mega Scan intro art: a 2×2 grid of overlapping photos */
+.mega-art {
+  position: relative;
+  width: 132px;
+  height: 104px;
+  margin: 8px auto 4px;
+}
+.mega-art span {
+  position: absolute;
+  width: 72px;
+  height: 56px;
+  border-radius: 8px;
+  border: 2px solid #22b8cf;
+  background: color-mix(in srgb, #22b8cf 12%, var(--card));
+}
+.mega-art span:nth-child(1) { left: 0; top: 0; }
+.mega-art span:nth-child(2) { left: 58px; top: 2px; }
+.mega-art span:nth-child(3) { left: 2px; top: 46px; }
+.mega-art span:nth-child(4) { left: 60px; top: 48px; }
+.mega-result {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-2);
+}
+.mega-result img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

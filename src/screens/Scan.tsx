@@ -24,10 +24,10 @@ let itemId = 1
  * `hints`: the outline the camera showed when each photo was taken (normalised 0..1). It is used
  * when detection on the full photo finds nothing, so what the user saw is what gets cropped.
  */
-export async function filesToItems(files: File[], filter: FilterName, detect = true, hints?: (Quad | null)[]): Promise<ScanItem[]> {
+export async function filesToItems(files: File[], filter: FilterName, detect = true, hints?: (Quad | null)[], maxSide?: number): Promise<ScanItem[]> {
   const out: ScanItem[] = []
   for (const [i, f] of files.entries()) {
-    const src = await blobToCanvas(f)
+    const src = await blobToCanvas(f, maxSide)
     const hint = hints?.[i]
     const q = (detect ? detectDocument(src) : null) ?? (hint ? (hint.map((p) => ({ x: p.x * src.width, y: p.y * src.height })) as Quad) : null)
     out.push({ id: itemId++, src, quad: q ?? fullQuad(src.width, src.height), auto: !!q, filter })
@@ -39,8 +39,8 @@ export async function renderItem(it: ScanItem, maxSide?: number): Promise<HTMLCa
   return applyFilter(warpPerspective(it.src, it.quad, maxSide), it.filter)
 }
 
-export async function itemToPage(it: ScanItem): Promise<NewPage> {
-  const c = await renderItem(it)
+export async function itemToPage(it: ScanItem, maxSide?: number): Promise<NewPage> {
+  const c = await renderItem(it, maxSide)
   return { blob: await canvasToBlob(c, 'image/jpeg', 0.9), w: c.width, h: c.height }
 }
 
@@ -88,7 +88,16 @@ function ResultPreview({ it }: { it: ScanItem }) {
   return <div className="result-box">{url ? <img src={url} alt="" /> : <div className="spinner" />}</div>
 }
 
-export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: string; hints?: (Quad | null)[] }) {
+/** Scan tools that open this editor with their own filter and name. */
+export type ScanKind = 'whiteboard' | 'slides' | 'mega'
+
+/**
+ * Slides are kept smaller: a lecture can mean dozens of photos, and a slide needs far less than a
+ * page of small print. Mega Scan results are kept larger so the detail survives.
+ */
+const SOURCE_SIDE: Partial<Record<ScanKind, number>> = { slides: 2000 }
+
+export function ScanScreen({ files, docId, hints, filter, kind, maxSide }: { files: File[]; docId?: string; hints?: (Quad | null)[]; filter?: FilterName; kind?: ScanKind; maxSide?: number }) {
   const { t, settings, setBusy, replace, back, pickFiles, toast } = useApp()
   const [items, setItems] = useState<ScanItem[]>([])
   const [cur, setCur] = useState(0)
@@ -97,7 +106,8 @@ export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: str
   const load = async (fs: File[], hs?: (Quad | null)[]) => {
     setBusy({ text: t('processing') })
     try {
-      const add = await filesToItems(fs, settings.defaultFilter, true, hs)
+      // A Mega Scan result is mostly the thing itself; edge detection would only find something inside it.
+      const add = await filesToItems(fs, filter ?? settings.defaultFilter, kind !== 'mega', hs, maxSide ?? (kind && SOURCE_SIDE[kind]))
       setItems((s) => {
         setCur(s.length)
         return [...s, ...add]
@@ -134,14 +144,14 @@ export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: str
       const pages: NewPage[] = []
       for (let i = 0; i < items.length; i++) {
         setBusy({ text: t('saving'), progress: i / items.length })
-        pages.push(await itemToPage(items[i]))
+        pages.push(await itemToPage(items[i], maxSide))
       }
       if (docId) {
         await addPages(docId, pages)
         setBusy(null)
         back()
       } else {
-        const doc = await createDoc(defaultDocName(), pages)
+        const doc = await createDoc(defaultDocName(kind ? t(`tool.${kind}`) : undefined), pages)
         setBusy(null)
         replace('doc', { id: doc.id })
       }
@@ -157,7 +167,7 @@ export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: str
 
   return (
     <Screen
-      title={items.length > 1 ? `${t('page')} ${cur + 1}/${items.length}` : t('tool.smartScan')}
+      title={items.length > 1 ? `${t('page')} ${cur + 1}/${items.length}` : t(kind ? `tool.${kind}` : 'tool.smartScan')}
       className="dark-screen"
       right={
         <button className="btn primary sm" onClick={save} disabled={!items.length}>
@@ -210,6 +220,19 @@ export function ScanScreen({ files, docId, hints }: { files: File[]; docId?: str
                 <Icon name="scan" />
                 <span>{it.quad.every((p, i) => p.x === fullQuad(it.src.width, it.src.height)[i].x && p.y === fullQuad(it.src.width, it.src.height)[i].y) ? t('autoDetect') : t('fullImage')}</span>
               </button>
+              {kind === 'slides' && items.length > 1 && (
+                // The screen stays put through a lecture: fix the corners once, use them everywhere.
+                <button
+                  onClick={() => {
+                    const q = it.quad.map((p) => ({ x: p.x / it.src.width, y: p.y / it.src.height }))
+                    setItems((s) => s.map((x) => ({ ...x, quad: q.map((p) => ({ x: p.x * x.src.width, y: p.y * x.src.height })) as Quad, auto: false })))
+                    toast(t('cropAllDone', { n: items.length }))
+                  }}
+                >
+                  <Icon name="copy" />
+                  <span>{t('cropAll')}</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   const next = items.filter((_, i) => i !== cur)

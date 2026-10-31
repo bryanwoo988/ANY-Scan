@@ -10,7 +10,31 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.14.0',
+    notes: {
+      en: [
+        'New in Scan: Slides — point at the screen in class; with Auto on, a photo is taken each time a new slide appears (rest the phone, no duplicates). Each slide is cropped and cleaned of screen ripples (moiré), then saved as one document you can share as a PDF. If a crop misses part of the screen, fix one slide and tap Crop all',
+        'New in Scan: Whiteboard — removes glare, shadows and uneven light so the board is plain white, and keeps marker colours',
+        'New in Scan: Mega Scan — photograph a poster, map or blueprint in overlapping parts, in any order; AnyScan joins them into one picture, then you crop and adjust it like any scan',
+        'The Whiteboard and Screen filters are also in the scan editor for any page',
+      ],
+      zh: [
+        '扫描新增「PPT 投影片」：上课时对准屏幕，开启「自动」后每换一张投影片就自动拍一张（手机可以放着，不会重复）。每张会自动裁剪、去掉拍屏幕的波纹（摩尔纹），存成一份文件，可以分享成 PDF。如果裁剪漏了一部分，调好一张再点「全部套用」',
+        '扫描新增「白板」：去掉反光、阴影和光线不均，白板变纯白，笔的颜色保留',
+        '扫描新增「超大扫描」：海报、地图、设计图分几张重叠着拍，顺序随意；AnyScan 会拼成一张，再像一般扫描一样裁剪和调整',
+        '「白板」和「屏幕」滤镜也加进了扫描编辑器，每一页都能用',
+      ],
+      ms: [
+        'Baharu dalam Imbas: Slaid — halakan ke skrin dalam kelas; dengan Auto dihidupkan, foto diambil setiap kali slaid baharu muncul (telefon boleh diletakkan, tiada pendua). Setiap slaid dipangkas dan riak skrin (moiré) dibuang, lalu disimpan sebagai satu dokumen yang boleh dikongsi sebagai PDF. Jika pangkasan tertinggal sebahagian skrin, betulkan satu slaid dan ketik Semua sama',
+        'Baharu dalam Imbas: Papan Putih — membuang silau, bayang dan cahaya tidak sekata supaya papan putih bersih, dan warna pen dikekalkan',
+        'Baharu dalam Imbas: Imbasan Mega — ambil foto poster, peta atau pelan secara bertindih, dalam apa jua susunan; AnyScan mencantumnya menjadi satu gambar, kemudian anda pangkas dan laras seperti imbasan biasa',
+        'Penapis Papan Putih dan Skrin juga ada dalam editor imbasan untuk mana-mana halaman',
+      ],
+    },
+  },
+  {
     version: '1.13.1',
+    released: '2026-10-31T13:22:41Z',
     notes: {
       en: [
         'Long Screenshot from a screen recording is much quicker and more dependable: it no longer slows to a crawl on some phones, and can no longer get stuck',
