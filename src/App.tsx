@@ -8,6 +8,7 @@ import { OcrScreen, SignScreen, TimestampScreen, WatermarkScreen } from './scree
 import { IdCardScreen, IdPhotoScreen } from './screens/Id'
 import { QrCreateScreen, QrHubScreen, QrScanScreen } from './screens/Qr'
 import { CameraScreen } from './screens/Camera'
+import { BinScreen } from './screens/Bin'
 import type { ComponentType } from 'react'
 import { LanguagePicker } from './components/LanguagePicker'
 import { HistoryScreen, UpdateBanner, useShowWhatsNewOnUpgrade, WhatsNewSheet } from './components/SettingsParts'
@@ -33,6 +34,7 @@ const ROUTES: Record<string, ComponentType<any>> = {
   qrscan: QrScanScreen,
   qrcreate: QrCreateScreen,
   history: HistoryScreen,
+  bin: BinScreen,
   camera: CameraScreen,
 }
 

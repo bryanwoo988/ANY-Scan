@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.8.0',
+    notes: {
+      en: [
+        'Swipe a file left for Rename, Album and Delete; long-press for more (Open, Move to album, Share, Duplicate…) — on Home and in Documents',
+        'Albums in Documents: create albums (Receipts, Work, Photos…), move files in, rename or delete albums',
+        'Recycle Bin: deleted files and albums are kept for 30 days and can be restored, then removed automatically. Delete shows an Undo button',
+      ],
+      zh: ['文件向左滑可重命名、移到相册、删除；按住可看更多选项（打开、移到相册、分享、复制…），首页和文件页都可以', '文件页新增相册：可建立相册（收据、工作、照片…），把文件移进去，相册可改名或删除', '回收站：删除的文件和相册会保留 30 天，可随时恢复，30 天后自动清除。删除后会出现「撤销」按钮'],
+      ms: [
+        'Leret fail ke kiri untuk Namakan semula, Album dan Padam; tekan lama untuk lagi (Buka, Pindah ke album, Kongsi, Salin…) — di Utama dan Dokumen',
+        'Album dalam Dokumen: cipta album (Resit, Kerja, Foto…), pindahkan fail, namakan semula atau padam album',
+        'Tong Kitar Semula: fail dan album yang dipadam disimpan 30 hari dan boleh dipulihkan, kemudian dibuang secara automatik. Padam menunjukkan butang Buat asal',
+      ],
+    },
+  },
+  {
     version: '1.7.2',
+    released: '2026-10-31T00:47:03Z',
     notes: {
       en: ['Timestamp: turn the time & info off to put only your watermarks on the photo (quick "Time on/off" button in the camera; saved with combinations)'],
       zh: ['时间水印：可关闭时间与信息，照片上只保留你的水印（相机里有「时间：开/关」快捷按钮，也会保存在组合里）'],

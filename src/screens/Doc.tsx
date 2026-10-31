@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { DocRow, Empty, PageImg, Screen, Segmented, Sheet, TextDialog } from '../components/ui'
 import {
-  createDoc, deleteDocs, docFromPages, listDocs, getDoc, getPage, getPages, onDbChange, renameDoc, replacePage, setPageOrder,
+  createDoc, docFromPages, moveDocsToAlbum, restore, trashDocs, listDocs, getDoc, getPage, getPages, onDbChange, renameDoc, replacePage, setPageOrder,
   type DocRec, type PageRec,
 } from '../lib/db'
 import { buildJpgs, buildLongImage, buildPdf, importPdf, PdfPasswordError, safeFileName, type PageSize, type Quality } from '../lib/export'
@@ -141,6 +141,7 @@ export function DocScreen({ id }: { id: string }) {
             className="option"
             onClick={act(async () => {
               const d = await docFromPages(`${doc.name} (${t('copy')})`, await getPages(doc))
+              await moveDocsToAlbum([d.id], doc.albumId ?? null)
               toast(t('saved'))
               push('doc', { id: d.id })
             })}
@@ -150,9 +151,8 @@ export function DocScreen({ id }: { id: string }) {
           <button
             className="option danger-text"
             onClick={act(async () => {
-              if (!window.confirm(t('confirmDelete', { n: 1 }))) return
-              await deleteDocs([id])
-              toast(t('deleted'))
+              await trashDocs([id])
+              toast(t('movedToBin', { n: 1 }), { label: t('undo'), run: () => restore([id], []) })
               back()
             })}
           >

@@ -2720,3 +2720,167 @@ p {
   color: #fff;
   border-color: #2fbf8f;
 }
+
+/* ---------------------------------------------------------------- swipe rows, albums, recycle bin */
+.swipe-box {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.swipe-box > .doc-row {
+  position: relative;
+  background: var(--bg);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+}
+.swipe-action {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #6b7488;
+}
+.swipe-action.accent {
+  background: var(--accent-2);
+}
+.swipe-action.danger {
+  background: var(--danger);
+}
+.toast.with-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 18px;
+  text-align: left;
+}
+.toast-action {
+  color: #6ee7b7;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+.album-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 16px 10px;
+  scrollbar-width: none;
+}
+.album-row::-webkit-scrollbar {
+  display: none;
+}
+.album-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card-2);
+  font-size: 14px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  flex: none;
+}
+.album-chip span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.album-chip.on {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.album-chip.on span {
+  color: inherit;
+}
+.album-chip.add {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--accent);
+}
+.album-manage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.album-manage .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.doc-album {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--accent);
+}
+.swipe-hint {
+  margin: 0 0 4px;
+}
+.bin-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--card-2);
+}
+.bin-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.bin-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bin-left {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--warn);
+}
+.album-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--card-2);
+  color: var(--accent);
+  flex: none;
+}

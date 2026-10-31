@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon, type IconName } from './Icon'
 import { useApp, useObjectUrl } from '../state'
@@ -62,25 +62,126 @@ export function formatDate(ms: number, lang: string): string {
   })
 }
 
-export function DocRow({ doc, onClick, selected, onSelect, actions }: { doc: DocRec; onClick: () => void; selected?: boolean; onSelect?: () => void; actions?: ReactNode }) {
+export interface SwipeAction {
+  label: string
+  icon: IconName
+  tone?: 'danger' | 'accent'
+  run: () => void
+}
+
+// Only one row is swiped open at a time.
+let closeOpenRow: (() => void) | null = null
+
+/**
+ * A document in a list. Swipe left to reveal `swipe` actions; long-press to call `onLongPress`
+ * (the click that ends a long press is swallowed so it doesn't also open the document).
+ */
+export function DocRow({ doc, onClick, selected, onSelect, actions, swipe, onLongPress, extra }: { doc: DocRec; onClick: () => void; selected?: boolean; onSelect?: () => void; actions?: ReactNode; swipe?: SwipeAction[]; onLongPress?: () => void; extra?: ReactNode }) {
   const { lang } = useApp()
+  const [dx, setDx] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const g = useRef<{ x: number; y: number; start: number; dir: 'h' | 'v' | null; timer: number; long: boolean } | null>(null)
+  const swallowClick = useRef(false)
+  const width = (swipe?.length ?? 0) * 76
+  const close = () => setDx(0)
+
+  const down = (e: React.PointerEvent) => {
+    // A swipe or long-press may not be followed by a click (touch rarely is), so reset per gesture.
+    swallowClick.current = false
+    const timer = onLongPress
+      ? window.setTimeout(() => {
+          if (!g.current || g.current.dir) return
+          g.current.long = true
+          swallowClick.current = true
+          navigator.vibrate?.(15)
+          onLongPress()
+        }, 500)
+      : 0
+    g.current = { x: e.clientX, y: e.clientY, start: dx, dir: null, timer, long: false }
+  }
+  const move = (e: React.PointerEvent) => {
+    const s = g.current
+    if (!s) return
+    const mx = e.clientX - s.x
+    const my = e.clientY - s.y
+    if (!s.dir && Math.hypot(mx, my) > 8) {
+      s.dir = Math.abs(mx) > Math.abs(my) ? 'h' : 'v'
+      window.clearTimeout(s.timer)
+      if (s.dir === 'h' && width) {
+        if (closeOpenRow && closeOpenRow !== close) closeOpenRow()
+        setDragging(true)
+        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      }
+    }
+    if (s.dir === 'h' && width) setDx(Math.min(0, Math.max(-width - 30, s.start + mx)))
+  }
+  const up = () => {
+    const s = g.current
+    g.current = null
+    if (!s) return
+    window.clearTimeout(s.timer)
+    if (s.dir === 'h' && width) {
+      swallowClick.current = true
+      setDragging(false)
+      const open = dx < -width / 3
+      setDx(open ? -width : 0)
+      closeOpenRow = open ? close : null
+    }
+  }
+  const tap = (fn: () => void) => () => {
+    if (swallowClick.current) {
+      swallowClick.current = false
+      return
+    }
+    if (dx !== 0) return close()
+    fn()
+  }
+
   return (
     <div className="doc-row-wrap">
-      <div className="doc-row">
-        <button className="doc-row-main" onClick={onClick}>
-          <PageImg pageId={doc.pageIds[0]} className="doc-thumb" />
-          <span className="doc-meta">
-            <span className="doc-name">{doc.name}</span>
-            <span className="doc-sub">
-              {formatDate(doc.updatedAt, lang)} <span className="dot" /> <Icon name="docs" size={14} /> {doc.pageIds.length}
-            </span>
-          </span>
-        </button>
-        {onSelect && (
-          <button className={`check ${selected ? 'on' : ''}`} onClick={onSelect} aria-pressed={selected} aria-label="select">
-            {selected && <Icon name="check" size={16} stroke={2.6} />}
-          </button>
+      <div className="swipe-box">
+        {swipe && dx !== 0 && (
+          <div className="swipe-actions" style={{ width }}>
+            {swipe.map((a) => (
+              <button
+                key={a.label}
+                className={`swipe-action ${a.tone ?? ''}`}
+                onClick={() => {
+                  close()
+                  a.run()
+                }}
+              >
+                <Icon name={a.icon} size={20} />
+                <span>{a.label}</span>
+              </button>
+            ))}
+          </div>
         )}
+        <div
+          className="doc-row"
+          style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dragging ? 'none' : 'transform 0.2s ease' }}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          onContextMenu={(e) => onLongPress && e.preventDefault()}
+        >
+          <button className="doc-row-main" onClick={tap(onClick)}>
+            <PageImg pageId={doc.pageIds[0]} className="doc-thumb" />
+            <span className="doc-meta">
+              <span className="doc-name">{doc.name}</span>
+              <span className="doc-sub">
+                {formatDate(doc.updatedAt, lang)} <span className="dot" /> <Icon name="docs" size={14} /> {doc.pageIds.length}
+              </span>
+              {extra}
+            </span>
+          </button>
+          {onSelect && (
+            <button className={`check ${selected ? 'on' : ''}`} onClick={tap(onSelect)} aria-pressed={selected} aria-label="select">
+              {selected && <Icon name="check" size={16} stroke={2.6} />}
+            </button>
+          )}
+        </div>
       </div>
       {actions && <div className="doc-actions">{actions}</div>}
     </div>

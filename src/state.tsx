@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { makeT, type Lang, type TFn } from './i18n'
 import { loadSettings, storeSettings, type Settings } from './lib/settings'
-import { listDocs, onDbChange, type DocRec } from './lib/db'
+import { listAlbums, listDocs, onDbChange, purgeBin, type AlbumRec, type DocRec } from './lib/db'
 import { applyTheme } from './themes'
 
 export type Tab = 'home' | 'docs' | 'tools' | 'settings'
@@ -28,7 +28,8 @@ interface AppCtx {
   replace: (name: string, params?: any) => void
   back: () => void
   home: () => void
-  toast: (msg: string) => void
+  /** Shows a short message; `action` adds a button such as Undo. */
+  toast: (msg: string, action?: { label: string; run: () => void }) => void
   busy: Busy | null
   setBusy: (b: Busy | null) => void
   pickFiles: (opts: { accept: string; multiple?: boolean; capture?: boolean }) => Promise<File[]>
@@ -48,7 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setS] = useState<Settings>(loadSettings)
   const [tab, setTab] = useState<Tab>('home')
   const [stack, setStack] = useState<Route[]>([])
-  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [toastMsg, setToastMsg] = useState<{ msg: string; action?: { label: string; run: () => void } } | null>(null)
   const [busy, setBusy] = useState<Busy | null>(null)
   const toastTimer = useRef<number>(0)
 
@@ -109,10 +110,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (stackLen.current > 0) history.go(-stackLen.current)
   }, [])
 
-  const toast = useCallback((msg: string) => {
-    setToastMsg(msg)
+  const toast = useCallback((msg: string, action?: { label: string; run: () => void }) => {
+    setToastMsg({ msg, action })
     window.clearTimeout(toastTimer.current)
-    toastTimer.current = window.setTimeout(() => setToastMsg(null), 2600)
+    // Give people time to reach an Undo button.
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), action ? 5000 : 2600)
   }, [])
 
   const pickFiles = useCallback((opts: { accept: string; multiple?: boolean; capture?: boolean }) => {
@@ -142,7 +144,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
+      {toastMsg && (
+        <div className={`toast ${toastMsg.action ? 'with-action' : ''}`} role="status">
+          <span>{toastMsg.msg}</span>
+          {toastMsg.action && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                toastMsg.action!.run()
+                setToastMsg(null)
+              }}
+            >
+              {toastMsg.action.label}
+            </button>
+          )}
+        </div>
+      )}
       {busy && (
         <div className="busy" role="alert" aria-busy="true">
           <div className="busy-card">
@@ -185,3 +202,21 @@ export function useObjectUrl(blob: Blob | null | undefined): string | undefined 
   }, [blob])
   return url
 }
+
+export function useAlbums(): AlbumRec[] {
+  const [albums, setAlbums] = useState<AlbumRec[]>([])
+  useEffect(() => {
+    let alive = true
+    const load = () => listAlbums().then((a) => alive && setAlbums(a))
+    load()
+    const off = onDbChange(load)
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
+  return albums
+}
+
+// Clear out anything that has been in the Recycle Bin for more than 30 days, once per launch.
+if (typeof indexedDB !== 'undefined') purgeBin().catch(() => {})

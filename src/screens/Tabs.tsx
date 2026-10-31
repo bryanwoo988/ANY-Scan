@@ -6,9 +6,10 @@ import { APP_VERSION } from '../changelog'
 import { activeLook } from '../themes'
 import { DocRow, Empty, Segmented, Sheet, TextDialog, ToolTile } from '../components/ui'
 import { LANGS, makeT, type Lang } from '../i18n'
-import { clearAll, deleteDocs, renameDoc, type DocRec } from '../lib/db'
+import { BIN_DAYS, clearAll, createAlbum, listBin, onDbChange, renameAlbum, trashAlbum } from '../lib/db'
+import { useDocActions } from '../components/DocActions'
 import { formatBytes, FILTERS } from '../lib/image'
-import { useApp, useDocs } from '../state'
+import { useAlbums, useApp, useDocs } from '../state'
 import { FAVORITES_MAX, SECTIONS, TOOLS, useFavorites, useTools, type ToolId } from '../tools'
 
 function useToolSearch(q: string): ToolId[] {
@@ -96,6 +97,7 @@ export function HomeTab() {
   const [q, setQ] = useState('')
   const found = useToolSearch(q)
   const [favs, setFavs] = useFavorites()
+  const actions = useDocActions()
   const [editFavs, setEditFavs] = useState(false)
 
   return (
@@ -135,6 +137,7 @@ export function HomeTab() {
             <ToolTile icon="grid" color="#8a94a6" label={t('all')} onClick={() => setTab('tools')} />
           </div>
           <FavoritesSheet open={editFavs} onClose={() => setEditFavs(false)} favs={favs} setFavs={setFavs} />
+          {actions.sheets}
           <InstallHint />
           <section className="card-section">
             <div className="section-head">
@@ -155,6 +158,8 @@ export function HomeTab() {
                 key={d.id}
                 doc={d}
                 onClick={() => push('doc', { id: d.id })}
+                swipe={actions.swipe(d)}
+                onLongPress={() => actions.menu(d)}
                 actions={
                   i === 0 ? (
                     <>
@@ -180,26 +185,72 @@ export function HomeTab() {
 }
 
 export function DocsTab() {
-  const { t, push, toast } = useApp()
+  const { t, push } = useApp()
   const docs = useDocs()
+  const albums = useAlbums()
+  const actions = useDocActions()
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<'date' | 'name'>('date')
   const [sel, setSel] = useState<string[]>([])
-  const [renaming, setRenaming] = useState<DocRec | null>(null)
+  const [album, setAlbum] = useState<string | null>(null) // null = All
+  const [albumDialog, setAlbumDialog] = useState<null | 'new' | 'rename'>(null)
+  const [deletingAlbum, setDeletingAlbum] = useState(false)
+  const [binCount, setBinCount] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const load = () => listBin().then((b) => alive && setBinCount(b.docs.length + b.albums.length))
+    load()
+    const off = onDbChange(load)
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
 
+  const current = albums.find((a) => a.id === album)
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase()
-    const list = (docs ?? []).filter((d) => !s || d.name.toLowerCase().includes(s))
+    const list = (docs ?? []).filter((d) => (!album || d.albumId === album) && (!s || d.name.toLowerCase().includes(s)))
     return sort === 'name' ? [...list].sort((a, b) => a.name.localeCompare(b.name)) : list
-  }, [docs, q, sort])
+  }, [docs, q, sort, album])
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const count = (id: string | null) => (docs ?? []).filter((d) => !id || d.albumId === id).length
 
   return (
     <div className="tab-page">
       <div className="topbar">
-        <h1 className="tab-title">{t('tab.docs')}</h1>
+        <h1 className="tab-title grow">{t('tab.docs')}</h1>
+        <button className="bin-btn" onClick={() => push('bin')} aria-label={t('recycleBin')}>
+          <Icon name="trash" size={20} />
+          {binCount > 0 && <span className="bin-count">{binCount}</span>}
+        </button>
       </div>
+      <div className="album-row">
+        <button className={`album-chip ${!album ? 'on' : ''}`} onClick={() => setAlbum(null)}>
+          {t('allDocs')} <span>{count(null)}</span>
+        </button>
+        {albums.map((a) => (
+          <button key={a.id} className={`album-chip ${album === a.id ? 'on' : ''}`} onClick={() => setAlbum(a.id)}>
+            <Icon name="album" size={15} /> {a.name} <span>{count(a.id)}</span>
+          </button>
+        ))}
+        <button className="album-chip add" onClick={() => setAlbumDialog('new')}>
+          <Icon name="plus" size={15} /> {t('newAlbum')}
+        </button>
+      </div>
+      {current && (
+        <div className="album-manage">
+          <Icon name="album" size={18} />
+          <strong className="grow">{current.name}</strong>
+          <button className="link" onClick={() => setAlbumDialog('rename')}>
+            <Icon name="edit" size={15} /> {t('rename')}
+          </button>
+          <button className="link danger-text" onClick={() => setDeletingAlbum(true)}>
+            <Icon name="trash" size={15} /> {t('delete')}
+          </button>
+        </div>
+      )}
       <div className="pad stack-sm">
         <label className="search">
           <Icon name="search" size={20} />
@@ -215,32 +266,40 @@ export function DocsTab() {
         />
       </div>
       {docs && docs.length === 0 && <Empty icon="docs" text={t('noDocsYet')} />}
+      {docs && docs.length > 0 && shown.length === 0 && <Empty icon="album" text={current && !q.trim() ? t('albumEmpty') : t('noMatchingDocs')} />}
+      {docs && docs.length > 0 && <p className="pad muted small swipe-hint">{t('swipeHint')}</p>}
       <div className="list">
         {shown.map((d) => (
-          <DocRow key={d.id} doc={d} onClick={() => push('doc', { id: d.id })} selected={sel.includes(d.id)} onSelect={() => toggle(d.id)} />
+          <DocRow
+            key={d.id}
+            doc={d}
+            onClick={() => push('doc', { id: d.id })}
+            selected={sel.includes(d.id)}
+            onSelect={() => toggle(d.id)}
+            swipe={actions.swipe(d)}
+            onLongPress={() => actions.menu(d)}
+            extra={!album && d.albumId ? <span className="doc-album">{actions.albumName(d.albumId)}</span> : undefined}
+          />
         ))}
       </div>
       {sel.length > 0 && (
         <div className="selection-bar">
           <span>{t('nSelected', { n: sel.length })}</span>
-          {sel.length === 1 && (
-            <button className="btn soft" onClick={() => setRenaming(docs!.find((d) => d.id === sel[0]) ?? null)}>
-              <Icon name="edit" size={18} />
-            </button>
-          )}
+          <button className="btn soft" onClick={() => actions.move(sel, () => setSel([]))} aria-label={t('moveToAlbum')}>
+            <Icon name="album" size={18} />
+          </button>
           {sel.length > 1 && (
-            <button className="btn soft" onClick={() => push('merge', { docIds: sel })}>
-              <Icon name="merge" size={18} /> {t('tool.merge')}
+            <button className="btn soft" onClick={() => push('merge', { docIds: sel })} aria-label={t('tool.merge')}>
+              <Icon name="merge" size={18} />
             </button>
           )}
           <button
             className="btn danger"
             onClick={async () => {
-              if (!window.confirm(t('confirmDelete', { n: sel.length }))) return
-              await deleteDocs(sel)
+              await actions.trash(sel)
               setSel([])
-              toast(t('deleted'))
             }}
+            aria-label={t('delete')}
           >
             <Icon name="trash" size={18} />
           </button>
@@ -249,17 +308,46 @@ export function DocsTab() {
           </button>
         </div>
       )}
+      {actions.sheets}
       <TextDialog
-        open={!!renaming}
-        title={t('rename')}
-        initial={renaming?.name ?? ''}
-        onCancel={() => setRenaming(null)}
+        open={albumDialog != null}
+        title={albumDialog === 'rename' ? t('renameAlbum') : t('newAlbum')}
+        initial={albumDialog === 'rename' ? current?.name ?? '' : ''}
+        placeholder={t('albumPlaceholder')}
+        onCancel={() => setAlbumDialog(null)}
         onOk={async (v) => {
-          if (renaming) await renameDoc(renaming.id, v)
-          setRenaming(null)
-          setSel([])
+          if (albumDialog === 'rename' && current) await renameAlbum(current.id, v)
+          else setAlbum((await createAlbum(v)).id)
+          setAlbumDialog(null)
         }}
       />
+      <Sheet open={deletingAlbum && !!current} onClose={() => setDeletingAlbum(false)} title={t('deleteAlbumTitle', { name: current?.name ?? '' })}>
+        <div className="option-list">
+          <button
+            className="option danger-text"
+            onClick={async () => {
+              await trashAlbum(current!.id, true)
+              setDeletingAlbum(false)
+              setAlbum(null)
+            }}
+          >
+            <Icon name="trash" /> {t('deleteAlbumWithDocs', { n: count(current?.id ?? null) })}
+          </button>
+          <button
+            className="option"
+            onClick={async () => {
+              await trashAlbum(current!.id, false)
+              setDeletingAlbum(false)
+              setAlbum(null)
+            }}
+          >
+            <Icon name="album" /> {t('deleteAlbumKeepDocs')}
+          </button>
+        </div>
+        <p className="muted small" style={{ marginTop: 10 }}>
+          {t('binNote', { n: BIN_DAYS })}
+        </p>
+      </Sheet>
     </div>
   )
 }

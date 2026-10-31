@@ -13,6 +13,17 @@ export interface DocRec {
   createdAt: number
   updatedAt: number
   pageIds: string[]
+  /** Album the document belongs to (none = only under "All"). */
+  albumId?: string | null
+  /** Set when moved to the Recycle Bin; the document is purged 30 days later. */
+  deletedAt?: number | null
+}
+
+export interface AlbumRec {
+  id: string
+  name: string
+  createdAt: number
+  deletedAt?: number | null
 }
 
 export interface NewPage {
@@ -22,7 +33,7 @@ export interface NewPage {
 }
 
 const DB_NAME = 'anyscan'
-const DB_VERSION = 1
+const DB_VERSION = 2 // v2: albums
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -34,6 +45,7 @@ function open(): Promise<IDBDatabase> {
         const db = req.result
         if (!db.objectStoreNames.contains('docs')) db.createObjectStore('docs', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('pages')) db.createObjectStore('pages', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('albums')) db.createObjectStore('albums', { keyPath: 'id' })
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
@@ -69,10 +81,15 @@ function changed() {
 export const uid = () =>
   (crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`).replace(/-/g, '')
 
-export async function listDocs(): Promise<DocRec[]> {
+async function allDocs(): Promise<DocRec[]> {
   const db = await open()
   const docs = await reqP(db.transaction('docs').objectStore('docs').getAll() as IDBRequest<DocRec[]>)
   return docs.sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+/** Documents that are not in the Recycle Bin, newest first. */
+export async function listDocs(): Promise<DocRec[]> {
+  return (await allDocs()).filter((d) => !d.deletedAt)
 }
 
 export async function getDoc(id: string): Promise<DocRec | undefined> {
@@ -184,9 +201,10 @@ export async function docFromPages(name: string, pages: PageRec[]): Promise<DocR
 
 export async function clearAll(): Promise<void> {
   const db = await open()
-  const tx = db.transaction(['docs', 'pages'], 'readwrite')
+  const tx = db.transaction(['docs', 'pages', 'albums'], 'readwrite')
   tx.objectStore('docs').clear()
   tx.objectStore('pages').clear()
+  tx.objectStore('albums').clear()
   await txDone(tx)
   changed()
 }
@@ -194,4 +212,125 @@ export async function clearAll(): Promise<void> {
 export function defaultDocName(prefix = 'AnyScan', d = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${prefix} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}`
+}
+
+// ---------------------------------------------------------------- albums & Recycle Bin
+
+export const BIN_DAYS = 30
+const DAY = 24 * 60 * 60 * 1000
+
+export async function listAlbums(): Promise<AlbumRec[]> {
+  const db = await open()
+  const all = await reqP(db.transaction('albums').objectStore('albums').getAll() as IDBRequest<AlbumRec[]>)
+  return all.filter((a) => !a.deletedAt).sort((a, b) => a.createdAt - b.createdAt)
+}
+
+async function putAll(store: 'docs' | 'albums', recs: (DocRec | AlbumRec)[]): Promise<void> {
+  if (!recs.length) return
+  const db = await open()
+  const tx = db.transaction(store, 'readwrite')
+  recs.forEach((r) => tx.objectStore(store).put(r))
+  await txDone(tx)
+  changed()
+}
+
+export async function createAlbum(name: string): Promise<AlbumRec> {
+  const a: AlbumRec = { id: uid(), name, createdAt: Date.now() }
+  await putAll('albums', [a])
+  return a
+}
+
+export async function renameAlbum(id: string, name: string): Promise<void> {
+  const a = (await listAlbums()).find((x) => x.id === id)
+  if (a) await putAll('albums', [{ ...a, name }])
+}
+
+export async function moveDocsToAlbum(ids: string[], albumId: string | null): Promise<void> {
+  const docs = (await Promise.all(ids.map(getDoc))).filter((d): d is DocRec => !!d)
+  await putAll('docs', docs.map((d) => ({ ...d, albumId })))
+}
+
+/** Moves documents to the Recycle Bin (they can be restored for 30 days). */
+export async function trashDocs(ids: string[], now = Date.now()): Promise<void> {
+  const docs = (await Promise.all(ids.map(getDoc))).filter((d): d is DocRec => !!d)
+  await putAll('docs', docs.map((d) => ({ ...d, deletedAt: now })))
+}
+
+/**
+ * Deletes an album. With `withDocs` the album and its documents go to the Recycle Bin together
+ * (restoring the album brings them back); otherwise the documents stay and leave the album.
+ */
+export async function trashAlbum(id: string, withDocs: boolean, now = Date.now()): Promise<void> {
+  const db = await open()
+  const album = await reqP(db.transaction('albums').objectStore('albums').get(id) as IDBRequest<AlbumRec | undefined>)
+  if (!album) return
+  const docs = (await listDocs()).filter((d) => d.albumId === id)
+  if (withDocs) {
+    await putAll('docs', docs.map((d) => ({ ...d, deletedAt: now })))
+    await putAll('albums', [{ ...album, deletedAt: now }])
+  } else {
+    await putAll('docs', docs.map((d) => ({ ...d, albumId: null })))
+    await deleteForever([], [id])
+  }
+}
+
+export interface BinContents {
+  docs: DocRec[]
+  albums: AlbumRec[]
+}
+
+export async function listBin(): Promise<BinContents> {
+  const db = await open()
+  const albums = (await reqP(db.transaction('albums').objectStore('albums').getAll() as IDBRequest<AlbumRec[]>)).filter((a) => a.deletedAt)
+  const docs = (await allDocs()).filter((d) => d.deletedAt)
+  const byDeleted = (a: { deletedAt?: number | null }, b: { deletedAt?: number | null }) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0)
+  return { docs: docs.sort(byDeleted), albums: albums.sort(byDeleted) }
+}
+
+/** Days left before an item in the Recycle Bin is deleted for good. */
+export function daysLeft(deletedAt: number, now = Date.now()): number {
+  return Math.max(0, Math.ceil((deletedAt + BIN_DAYS * DAY - now) / DAY))
+}
+
+/** Restores documents and albums from the Recycle Bin. Restoring an album restores its documents. */
+export async function restore(docIds: string[], albumIds: string[]): Promise<void> {
+  const bin = await listBin()
+  const albums = bin.albums.filter((a) => albumIds.includes(a.id))
+  const docs = bin.docs.filter((d) => docIds.includes(d.id) || (d.albumId && albumIds.includes(d.albumId)))
+  const liveAlbums = new Set([...(await listAlbums()).map((a) => a.id), ...albumIds])
+  await putAll('albums', albums.map((a) => ({ ...a, deletedAt: null })))
+  // A document whose album is gone comes back under "All".
+  await putAll('docs', docs.map((d) => ({ ...d, deletedAt: null, albumId: d.albumId && liveAlbums.has(d.albumId) ? d.albumId : null })))
+}
+
+/** Permanently deletes documents (with their pages) and albums. */
+export async function deleteForever(docIds: string[], albumIds: string[]): Promise<void> {
+  const db = await open()
+  const docs = (await Promise.all(docIds.map(getDoc))).filter((d): d is DocRec => !!d)
+  const tx = db.transaction(['docs', 'pages', 'albums'], 'readwrite')
+  docs.forEach((d) => {
+    d.pageIds.forEach((p) => tx.objectStore('pages').delete(p))
+    tx.objectStore('docs').delete(d.id)
+  })
+  albumIds.forEach((id) => tx.objectStore('albums').delete(id))
+  await txDone(tx)
+  changed()
+}
+
+export async function emptyBin(): Promise<void> {
+  const bin = await listBin()
+  await deleteForever(
+    bin.docs.map((d) => d.id),
+    bin.albums.map((a) => a.id),
+  )
+}
+
+/** Permanently deletes whatever has been in the Recycle Bin for more than 30 days. */
+export async function purgeBin(now = Date.now()): Promise<number> {
+  const bin = await listBin()
+  const old = (x: { deletedAt?: number | null }) => !!x.deletedAt && now - x.deletedAt > BIN_DAYS * DAY
+  const docs = bin.docs.filter(old).map((d) => d.id)
+  const albums = bin.albums.filter(old).map((a) => a.id)
+  if (docs.length || albums.length) await deleteForever(docs, albums)
+  return docs.length + albums.length
 }
