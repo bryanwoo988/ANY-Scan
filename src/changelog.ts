@@ -10,7 +10,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.11.0',
+    notes: {
+      en: [
+        'New: Convert to Excel — turn tables in photos, scans and PDFs into an editable .xlsx (Tools › Convert)',
+        'Rows and columns are rebuilt from where the text sits; numbers become real numbers (8.90, 2,100.00 and 6% keep their look), while codes, IC and phone numbers stay as text',
+        'Start from the camera, Photos, Files or a document already in AnyScan; preview the table before saving, one sheet per page or all in one',
+        'PDFs use their own text; pictures are read on your phone with OCR, even slightly tilted photos and tables with grid lines',
+      ],
+      zh: ['新功能：转 Excel——把照片、扫描件和 PDF 里的表格转成可编辑的 .xlsx（工具 › 转换）', '会根据文字位置重建行和列；数字变成真正的数值（8.90、2,100.00、6% 保持原来的样子），编号、IC 和电话号码保持文字', '可以拍照、从相册、文件或 AnyScan 里的文件开始；保存前可以预览表格，每页一个工作表或全部放一起', 'PDF 直接用里面的文字；图片会在手机上用 OCR 识别，稍微歪的照片和有格线的表格也可以'],
+      ms: [
+        'Baharu: Tukar ke Excel — tukar jadual dalam foto, imbasan dan PDF kepada .xlsx yang boleh diedit (Alatan › Tukar)',
+        'Baris dan lajur dibina semula daripada kedudukan teks; nombor menjadi nombor sebenar (8.90, 2,100.00 dan 6% kekal rupanya), manakala kod, nombor IC dan telefon kekal sebagai teks',
+        'Mula daripada kamera, Foto, Fail atau dokumen dalam AnyScan; pratonton jadual sebelum menyimpan, satu helaian setiap halaman atau semua dalam satu',
+        'PDF menggunakan teksnya sendiri; gambar dibaca di telefon dengan OCR, termasuk foto yang sedikit senget dan jadual bergaris',
+      ],
+    },
+  },
+  {
     version: '1.10.1',
+    released: '2026-10-31T07:19:17Z',
     notes: {
       en: ['"Scan to Word" is now called "To Text" (it still saves as text or Word)'],
       zh: ['「扫描转 Word」改名为「转文字」（一样可以保存为文字或 Word）'],
