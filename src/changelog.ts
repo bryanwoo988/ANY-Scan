@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.12.1',
+    notes: {
+      en: [
+        'Long Screenshot: no more input bar or "scroll down" button in the middle of the image — screenshots are now joined in the middle of the content they share, so see-through bars and floating buttons are left out',
+        'New Top and Bottom controls to trim the edges of the long image; the input bar at the very bottom is trimmed automatically',
+        'Joins are matched to the exact pixel, and screenshots that don\'t overlap are flagged instead of being joined in the wrong place',
+      ],
+      zh: ['长截图：中间不会再出现输入框或「往下滑」按钮——现在会在两张截图共同内容的中间接合，半透明的底栏和浮动按钮都会被去掉', '新增「顶部」和「底部」调整，可裁切长图的上下边缘；最下面的输入框会自动裁掉', '接缝精确到像素；没有重叠的截图会被标示出来，不会接错位置'],
+      ms: [
+        'Tangkapan Skrin Panjang: tiada lagi bar input atau butang "tatal ke bawah" di tengah imej — tangkapan skrin kini disambung di tengah kandungan yang dikongsi, jadi bar lut sinar dan butang terapung ditinggalkan',
+        'Kawalan Atas dan Bawah baharu untuk memotong tepi imej panjang; bar input di bahagian paling bawah dipotong secara automatik',
+        'Sambungan dipadankan tepat ke piksel, dan tangkapan skrin yang tidak bertindih ditandakan dan bukan disambung di tempat yang salah',
+      ],
+    },
+  },
+  {
     version: '1.12.0',
+    released: '2026-10-31T07:45:07Z',
     notes: {
       en: [
         'New: Long Screenshot — join screenshots taken while scrolling (a chat, an article, a receipt) into one long image (Tools › Scan)',

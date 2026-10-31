@@ -8,13 +8,14 @@ import { shareOrDownload } from '../lib/share'
 import { makePlan, slices, toGray, type Plan } from '../lib/stitch'
 import { useApp } from '../state'
 
-const SMALL_W = 160
+const SMALL_W = 240
 // Canvases larger than this fail on iPhones.
 const MAX_PIXELS = 16_000_000
 const MAX_SIDE = 32_000
 // One page of a saved document stays well inside those limits.
 const PAGE_H = 12_000
 const STEP = 8
+const EDGE_STEP = 24
 
 interface Shot {
   file: File
@@ -149,12 +150,18 @@ export function StitchScreen() {
     setShots(next)
   }
   const remove = (i: number) => setShots(shots.filter((_, k) => k !== i))
+  /** ▲ at a join cuts more of the lower screenshot away (the content below moves up). */
   const nudge = (seam: number, d: number) => {
     if (!plan) return
-    const h = shots[seam + 1].canvas.height - plan.top - plan.bottom
-    const overlaps = [...plan.overlaps]
-    overlaps[seam] = Math.max(0, Math.min(h - 1, overlaps[seam] + d))
-    setPlan({ ...plan, overlaps })
+    const h = shots[seam + 1].canvas.height
+    const joins = plan.joins.map((j, i) => (i === seam ? { ...j, bStart: Math.max(0, Math.min(h - 1, j.bStart + d)) } : j))
+    setPlan({ ...plan, joins })
+  }
+  /** Moves the top or bottom edge of the long image; the arrows move the edge. */
+  const edge = (which: 'top' | 'bottom', d: number) => {
+    if (!plan) return
+    const h = shots[which === 'top' ? 0 : shots.length - 1].canvas.height
+    setPlan({ ...plan, [which]: Math.max(0, Math.min(Math.round(h * 0.6), plan[which] + d)) })
   }
 
   const totalH = preview?.total ?? 0
@@ -267,10 +274,32 @@ export function StitchScreen() {
             <p className="muted small">{t('stitchSeamHint')}</p>
             <div className="stitch-preview">
               <img src={preview.url} alt="" />
+              <div className="stitch-edge top">
+                <div className="stitch-seam-pill">
+                  <span>{t('stitchTop')}</span>
+                  <button onClick={() => edge('top', -EDGE_STEP)} disabled={plan.top === 0} aria-label={t('stitchShowMore')}>
+                    ▲
+                  </button>
+                  <button onClick={() => edge('top', EDGE_STEP)} aria-label={t('stitchTrimMore')}>
+                    ▼
+                  </button>
+                </div>
+              </div>
+              <div className="stitch-edge bottom">
+                <div className="stitch-seam-pill">
+                  <span>{t('stitchBottom')}</span>
+                  <button onClick={() => edge('bottom', EDGE_STEP)} aria-label={t('stitchTrimMore')}>
+                    ▲
+                  </button>
+                  <button onClick={() => edge('bottom', -EDGE_STEP)} disabled={plan.bottom === 0} aria-label={t('stitchShowMore')}>
+                    ▼
+                  </button>
+                </div>
+              </div>
               {preview.seams.map((y, i) => (
-                <div key={i} className={`stitch-seam ${plan.overlaps[i] ? '' : 'none'}`} style={{ top: `${(y / preview.total) * 100}%` }}>
+                <div key={i} className={`stitch-seam ${plan.joins[i].matched ? '' : 'none'}`} style={{ top: `${(y / preview.total) * 100}%` }}>
                   <div className="stitch-seam-pill">
-                    <span>{plan.overlaps[i] ? i + 1 : t('stitchNoOverlap')}</span>
+                    <span>{plan.joins[i].matched ? i + 1 : t('stitchNoOverlap')}</span>
                     <button onClick={() => nudge(i, STEP)} aria-label={t('stitchCutMore')}>
                       ▲
                     </button>

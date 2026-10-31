@@ -3357,3 +3357,22 @@ p {
 .stitch-seam-pill button:active {
   background: rgba(255, 255, 255, 0.25);
 }
+/* Top and bottom edges of the long image, adjustable like the joins. */
+.stitch-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+.stitch-edge.top {
+  top: 22px;
+}
+.stitch-edge.bottom {
+  bottom: 22px;
+}
+.stitch-edge .stitch-seam-pill {
+  background: #1e2638;
+}
+.stitch-seam-pill button:disabled {
+  opacity: 0.35;
+}
