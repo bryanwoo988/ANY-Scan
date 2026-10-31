@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '../components/Icon'
 import { DocRow, PageImg, Screen, Segmented } from '../components/ui'
@@ -6,6 +6,7 @@ import { createDoc, defaultDocName, getPage, getPages, replacePage, type PageRec
 import { buildDocx, safeFileName } from '../lib/export'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d } from '../lib/image'
 import { drawStamp } from '../lib/stamp'
+import { DEFAULT_WM, detectRegions, drawWatermark, WM_STYLES, type Rect, type WmOptions, type WmPos } from '../lib/watermark'
 import { PresetBar, StampContentForm, TemplatePicker, useStampOptions, useStampPrefs, type Place } from '../components/StampEditor'
 import { OCR_LANGS, recognize, type OcrLang } from '../lib/ocr'
 import { loadJSON, saveJSON } from '../lib/settings'
@@ -376,57 +377,73 @@ export function SignScreen({ docId }: { docId: string }) {
 
 // ---------------------------------------------------------------- Watermark
 
-export function drawWatermark(c: HTMLCanvasElement, text: string, o: { color: string; opacity: number; size: number; tiled: boolean }) {
-  const ctx = ctx2d(c)
-  const fs = Math.max(10, (o.size / 100) * Math.min(c.width, c.height) * 0.12)
-  ctx.save()
-  ctx.globalAlpha = o.opacity
-  ctx.fillStyle = o.color
-  ctx.font = `600 ${fs}px -apple-system, "PingFang SC", "Noto Sans", sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  if (o.tiled) {
-    ctx.translate(c.width / 2, c.height / 2)
-    ctx.rotate(-Math.PI / 6)
-    const tw = ctx.measureText(text).width + fs * 2
-    const th = fs * 3.2
-    const span = Math.hypot(c.width, c.height)
-    let row = 0
-    for (let y = -span / 2; y < span / 2; y += th, row++)
-      for (let x = -span / 2 + (row % 2 ? tw / 2 : 0); x < span / 2; x += tw) ctx.fillText(text, x, y)
-  } else {
-    ctx.translate(c.width / 2, c.height / 2)
-    ctx.rotate(-Math.PI / 6)
-    ctx.fillText(text, 0, 0)
-  }
-  ctx.restore()
+type WmPrefs = Omit<WmOptions, 'text' | 'sub'> & { date: boolean }
+const WM_KEY = 'anyscan.wmPrefs'
+const DATE_LOCALE = { en: 'en-GB', zh: 'zh-CN', ms: 'ms-MY' } as const
+
+/** Bounding box of `rs` with a margin, kept inside a w×h canvas. */
+function around(rs: Rect[], w: number, h: number): Rect {
+  const x0 = Math.min(...rs.map((r) => r.x))
+  const y0 = Math.min(...rs.map((r) => r.y))
+  const x1 = Math.max(...rs.map((r) => r.x + r.w))
+  const y1 = Math.max(...rs.map((r) => r.y + r.h))
+  const m = Math.max(x1 - x0, y1 - y0) * 0.08
+  const x = Math.max(0, x0 - m)
+  const y = Math.max(0, y0 - m)
+  return { x, y, w: Math.min(w, x1 + m) - x, h: Math.min(h, y1 + m) - y }
+}
+
+/** Draws `base` (cropped to `crop`, scaled to `width`) with the watermark into `out`. */
+function renderWm(out: HTMLCanvasElement, base: HTMLCanvasElement, crop: Rect, regions: Rect[], o: WmOptions, width: number) {
+  const s = width / crop.w
+  out.width = Math.round(crop.w * s)
+  out.height = Math.round(crop.h * s)
+  ctx2d(out).drawImage(base, crop.x, crop.y, crop.w, crop.h, 0, 0, out.width, out.height)
+  const rs = regions.map((r) => ({ x: (r.x - crop.x) * s, y: (r.y - crop.y) * s, w: r.w * s, h: r.h * s }))
+  drawWatermark(out, { ...o, area: o.area === 'content' && rs.length ? 'content' : 'page' }, rs)
+}
+
+function StyleCard({ base, crop, regions, o, label, on, onClick }: { base: HTMLCanvasElement; crop: Rect; regions: Rect[]; o: WmOptions; label: string; on: boolean; onClick: () => void }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (ref.current) renderWm(ref.current, base, crop, regions, { ...o, opacity: Math.max(o.opacity, 0.6) }, 240)
+  }, [base, crop, regions, o])
+  return (
+    <button className={`wm-style ${on ? 'on' : ''}`} onClick={onClick} aria-pressed={on}>
+      <canvas ref={ref} />
+      <span>{label}</span>
+    </button>
+  )
 }
 
 export function WatermarkScreen({ docId }: { docId: string }) {
-  const { t, setBusy, replace, toast } = useApp()
+  const { t, lang, setBusy, replace, toast } = useApp()
   const doc = useDoc(docId)
   const [text, setText] = useState(() => loadJSON('anyscan.wmText', ''))
-  const [color, setColor] = useState('#808080')
-  const [opacity, setOpacity] = useState(0.3)
-  const [size, setSize] = useState(50)
-  const [tiled, setTiled] = useState(true)
+  const [prefs, setPrefs] = useState<WmPrefs>(() => ({ ...DEFAULT_WM, date: false, ...loadJSON<Partial<WmPrefs>>(WM_KEY, {}) }))
+  const update = (p: Partial<WmPrefs>) => setPrefs((x) => ({ ...x, ...p }))
   const [base, setBase] = useState<HTMLCanvasElement>()
   const prevRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     if (doc?.pageIds[0]) getPage(doc.pageIds[0]).then((p) => p && blobToCanvas(p.blob, 900).then(setBase))
   }, [doc])
+  const regions = useMemo(() => (base ? detectRegions(base) : []), [base])
+  const onContent = prefs.area === 'content' && regions.length > 0
+  // Zoom the previews in on the cards when that's where the watermark goes.
+  const crop = useMemo(() => (base ? (onContent ? around(regions, base.width, base.height) : { x: 0, y: 0, w: base.width, h: base.height }) : null), [base, regions, onContent])
+  // Thumbnails show just the first card so the style is readable at that size.
+  const thumb = useMemo(() => (base && onContent ? { crop: around(regions.slice(0, 1), base.width, base.height), regions: regions.slice(0, 1) } : { crop, regions }), [base, onContent, regions, crop])
+  const sub = prefs.date ? new Date().toLocaleDateString(DATE_LOCALE[lang]) : undefined
+  const opts: WmOptions = { ...prefs, text: text || t('watermarkSample'), sub }
 
   useEffect(() => {
-    const pc = prevRef.current
-    if (!pc || !base) return
-    pc.width = base.width
-    pc.height = base.height
-    ctx2d(pc).drawImage(base, 0, 0)
-    if (text) drawWatermark(pc, text, { color, opacity, size, tiled })
-  }, [base, text, color, opacity, size, tiled])
+    if (prevRef.current && base && crop) renderWm(prevRef.current, base, crop, regions, opts, 900)
+  })
 
   if (!doc) return <Screen title={t('tool.watermark')}>{null}</Screen>
+  const positions: WmPos[] = prefs.style === 'stamp' ? ['tl', 'tr', 'c', 'bl', 'br'] : ['tl', 'tr', 'bl', 'br']
+  const arrows: Record<WmPos, string> = { tl: '↖', tr: '↗', c: '●', bl: '↙', br: '↘' }
 
   return (
     <Screen
@@ -437,13 +454,15 @@ export function WatermarkScreen({ docId }: { docId: string }) {
           disabled={!text.trim()}
           onClick={async () => {
             saveJSON('anyscan.wmText', text)
+            saveJSON(WM_KEY, prefs)
             setBusy({ text: t('processing') })
             try {
               const pages = await getPages(doc)
               const out = []
               for (const p of pages) {
                 const c = await blobToCanvas(p.blob, 10000)
-                drawWatermark(c, text, { color, opacity, size, tiled })
+                // Each page finds its own cards/photos.
+                drawWatermark(c, { ...opts, text })
                 out.push({ blob: await canvasToBlob(c, 'image/jpeg', 0.92), w: c.width, h: c.height })
               }
               const d = await createDoc(`${doc.name} (${t('tool.watermark')})`, out)
@@ -459,26 +478,59 @@ export function WatermarkScreen({ docId }: { docId: string }) {
       }
     >
       <div className="pad stack">
-        <div className="preview-box">
+        <div className="preview-box wm-preview">
           <canvas ref={prevRef} />
         </div>
         <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('watermarkPlaceholder')} maxLength={60} />
+        <div className="field-label">{t('wmStyle')}</div>
+        <div className="wm-styles">
+          {base &&
+            crop &&
+            WM_STYLES.map((st) => (
+              <StyleCard key={st} base={base} crop={thumb.crop!} regions={thumb.regions} o={{ ...opts, style: st }} label={t(`wm.${st}`)} on={prefs.style === st} onClick={() => update({ style: st })} />
+            ))}
+        </div>
+        {regions.length > 0 && (
+          <Segmented
+            value={prefs.area}
+            onChange={(area) => update({ area })}
+            options={[
+              { value: 'content', label: t('wmOnContent', { n: regions.length }) },
+              { value: 'page', label: t('wmWholePage') },
+            ]}
+          />
+        )}
+        {(prefs.style === 'corner' || prefs.style === 'stamp') && (
+          <>
+            <div className="row gap wm-pos" role="radiogroup" aria-label={t('position')}>
+              {positions.map((p) => (
+                <button key={p} role="radio" aria-checked={prefs.pos === p} className={`chip ${prefs.pos === p ? 'on' : ''}`} onClick={() => update({ pos: p })} aria-label={p === 'c' ? t('wmCentre') : t(`pos.${p}`)}>
+                  {arrows[p]}
+                </button>
+              ))}
+            </div>
+            <label className="slider">
+              <span>{t('angle')}</span>
+              <input type="range" min={-45} max={45} step={1} value={prefs.angle} onChange={(e) => update({ angle: +e.target.value })} />
+            </label>
+          </>
+        )}
         <div className="row gap">
           {['#808080', '#e53935', '#1e63d6', '#111111', '#2fbf8f'].map((c) => (
-            <button key={c} className={`swatch ${color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
+            <button key={c} className={`swatch ${prefs.color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => update({ color: c })} aria-label={c} />
           ))}
         </div>
         <label className="slider">
           <span>{t('opacity')}</span>
-          <input type="range" min={0.08} max={0.9} step={0.02} value={opacity} onChange={(e) => setOpacity(+e.target.value)} />
+          <input type="range" min={0.08} max={0.9} step={0.02} value={prefs.opacity} onChange={(e) => update({ opacity: +e.target.value })} />
         </label>
         <label className="slider">
           <span>{t('textSize')}</span>
-          <input type="range" min={15} max={100} value={size} onChange={(e) => setSize(+e.target.value)} />
+          <input type="range" min={15} max={100} value={prefs.size} onChange={(e) => update({ size: +e.target.value })} />
         </label>
         <label className="switch-row">
-          <span>{t('tiled')}</span>
-          <input type="checkbox" className="switch" checked={tiled} onChange={(e) => setTiled(e.target.checked)} />
+          <span>{t('wmAddDate')}</span>
+          <input type="checkbox" className="switch" checked={prefs.date} onChange={(e) => update({ date: e.target.checked })} />
         </label>
       </div>
     </Screen>

@@ -10,7 +10,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.9.0',
+    notes: {
+      en: [
+        'Watermark: 5 styles to choose from, each previewed on your own page — Diagonal, Across lines, Corner, Stamp and Repeat',
+        'Finds the ID card or photo on the page and puts the watermark only on it (front and back each get their own); switch to "Whole page" any time',
+        'Corner and Stamp: pick top-left, top-right, bottom-left, bottom-right (or centre for Stamp) and the angle',
+        "Optional second line with today's date; your style and settings are remembered",
+      ],
+      zh: ['水印：5 种款式可选，并直接用你的页面预览——斜跨、斜线、角落、印章、平铺', '会自动找到页面上的证件或照片，只把水印放在上面（正反面各放一个）；也可随时改成「整页」', '角落和印章可选左上、右上、左下、右下（印章还可放中间），并可调角度', '可加第二行今天的日期；款式和设置会记住'],
+      ms: [
+        'Tera air: 5 gaya untuk dipilih, setiap satu dipratonton pada halaman anda — Pepenjuru, Garisan silang, Penjuru, Cop dan Berulang',
+        'Mengesan kad pengenalan atau foto pada halaman dan meletakkan tera air hanya padanya (depan dan belakang masing-masing); tukar ke "Seluruh halaman" bila-bila masa',
+        'Penjuru dan Cop: pilih atas kiri, atas kanan, bawah kiri, bawah kanan (atau tengah untuk Cop) dan sudut',
+        'Baris kedua pilihan dengan tarikh hari ini; gaya dan tetapan anda diingati',
+      ],
+    },
+  },
+  {
     version: '1.8.1',
+    released: '2026-10-31T02:37:43Z',
     notes: {
       en: [
         'Batch select: tap "Select" in Documents, then tap files, or slide your finger along the checkboxes to pick many at once (the list scrolls when you reach the edge; slide back to undo)',
