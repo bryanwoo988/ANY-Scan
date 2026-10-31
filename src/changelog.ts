@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.12.2',
+    notes: {
+      en: [
+        'Long Screenshot: every screenshot now has its own ▲ / ▼ for its top and bottom edge (the arrow is the way the edge moves), so each join can be fixed exactly',
+        'Better with chat apps like Messenger, WhatsApp and iMessage, including see-through (frosted) headers and input bars, and chats where the same short message ("OK", "👍") appears many times',
+        'Adjustments show instantly',
+      ],
+      zh: ['长截图：现在每张截图的顶部和底部都有自己的 ▲ / ▼（箭头就是边缘移动的方向），每个接缝都可以精确调整', 'Messenger、WhatsApp、iMessage 等聊天截图效果更好，包括半透明（毛玻璃）的标题栏和输入框，以及同一句短讯息（「OK」「👍」）重复出现很多次的对话', '调整后马上显示结果'],
+      ms: [
+        'Tangkapan Skrin Panjang: setiap tangkapan skrin kini ada ▲ / ▼ sendiri untuk tepi atas dan bawahnya (anak panah ialah arah tepi bergerak), jadi setiap sambungan boleh dibetulkan dengan tepat',
+        'Lebih baik untuk aplikasi sembang seperti Messenger, WhatsApp dan iMessage, termasuk pengepala dan bar input lut sinar (kabur), serta sembang dengan mesej pendek yang sama ("OK", "👍") berulang kali',
+        'Pelarasan dipaparkan serta-merta',
+      ],
+    },
+  },
+  {
     version: '1.12.1',
+    released: '2026-10-31T08:36:49Z',
     notes: {
       en: [
         'Long Screenshot: no more input bar or "scroll down" button in the middle of the image — screenshots are now joined in the middle of the content they share, so see-through bars and floating buttons are left out',

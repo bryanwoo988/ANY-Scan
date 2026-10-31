@@ -63,11 +63,7 @@ export interface Overlap {
   /** The shared stretch, in B's rows [b0, b1); it starts and ends on rows that match exactly. */
   b0: number
   b1: number
-  /**
-   * Where to cut (a B row): the middle of the first run of exactly matching rows. Rows above the cut
-   * come from A, so the cut must lie above anything covering A's lower part (a floating button);
-   * the first mismatch inside the stretch is such a cover (B's header lies before the stretch).
-   */
+  /** Where to cut (a B row); see chooseCut. */
   cut: number
   /** Text rows that match exactly (how convincing the match is). */
   detail: number
@@ -123,14 +119,11 @@ function stretchAt(a: Gray, b: Gray, offset: number, bDetail: boolean[], cmp: Co
   let pendingText = 0
   let rough = 0
   let bad = 0
-  // The run of exact rows the stretch starts with.
-  let firstEnd = -1
   const close = () => {
     if (start >= 0 && exact >= textRows * 0.25 && (!best || exact > best.detail || (exact === best.detail && last + 1 - start > best.b1 - best.b0)))
-      best = { offset, b0: start, b1: last + 1, cut: Math.floor((start + (firstEnd < 0 ? last + 1 : firstEnd)) / 2), detail: exact }
+      best = { offset, b0: start, b1: last + 1, cut: Math.floor((start + last + 1) / 2), detail: exact }
     start = -1
     exact = textRows = pendingText = rough = bad = 0
-    firstEnd = -1
   }
   for (let j = 0; j < n; j++) {
     const c = cmp(a, j + offset, b, j)
@@ -144,7 +137,6 @@ function stretchAt(a: Gray, b: Gray, offset: number, bDetail: boolean[], cmp: Co
       continue
     }
     if (start < 0) continue
-    if (firstEnd < 0) firstEnd = j
     // Bridge rough rows (a button) and the odd mismatching row (resampling blur on a small copy).
     if (++rough <= bridge && (c === 1 || ++bad <= 2)) {
       if (bDetail[j]) pendingText++
@@ -162,40 +154,71 @@ function stretchAt(a: Gray, b: Gray, offset: number, bDetail: boolean[], cmp: Co
  * message twice, repeated rows of a table).
  */
 /**
- * How far below the known header a real overlap may start. A solid header (found on every
- * screenshot) is followed directly by the shared content; a see-through one isn't found, only the
- * status bar is, so allow for the header below it.
+ * A real overlap has text in it and lies where a scroll puts it: it starts just under b's header
+ * (b0 within `window`, in b's rows) and reaches towards the bottom of a. A match elsewhere is a
+ * coincidence (the same message twice, repeated rows of a table).
  */
-const headerSlack = (header: number, h: number) => (header >= h * 0.05 ? 0.04 : 0.15)
+const isReal = (o: Overlap | null, a: Gray, minRows: number, window: [number, number]): o is Overlap =>
+  !!o && o.detail >= 5 && o.b1 - o.b0 >= minRows && o.b0 >= window[0] && o.b0 <= window[1] && o.b1 + o.offset >= a.h * 0.5
 
-const isReal = (o: Overlap | null, a: Gray, minRows: number, maxB0: number): o is Overlap =>
-  !!o && o.detail >= 5 && o.b1 - o.b0 >= minRows && o.b0 <= maxB0 && o.b1 + o.offset >= a.h * 0.5
-
-/**
- * Finds where b continues a (b scrolled further down): the offset with the most shared text.
- * `header` is the height of the bar at the top that stays put, if known.
- */
-export function findOverlap(a: Gray, b: Gray, cmp: Compare = exactRows, header = 0): Overlap | null {
-  const maxB0 = header + b.h * headerSlack(header, b.h)
+/** Finds where b continues a (b scrolled further down): the offset with the most shared text. */
+export function findOverlap(a: Gray, b: Gray, cmp: Compare = exactRows, window: [number, number] = [0, b.h * 0.4]): Overlap | null {
   const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
   let best: Overlap | null = null
   for (let offset = 1; offset < a.h - 4; offset++) {
     const o = stretchAt(a, b, offset, bDetail, cmp)
-    if (o && isReal(o, a, 10, maxB0) && (!best || o.detail > best.detail || (o.detail === best.detail && o.b1 - o.b0 > best.b1 - best.b0))) best = o
+    if (o && isReal(o, a, 10, window) && (!best || o.detail > best.detail || (o.detail === best.detail && o.b1 - o.b0 > best.b1 - best.b0))) best = o
   }
   return best
 }
 
+/** Rows j of the shared stretch (b's rows) where a and b differ. */
+function differences(a: Gray, b: Gray, o: Overlap): number[] {
+  const out: number[] = []
+  for (let j = o.b0; j < o.b1; j++) if (exactRows(a, j + o.offset, b, j) !== 0) out.push(j)
+  return out
+}
+
+/**
+ * Where to cut inside the shared stretch. Rows above the cut come from a, rows below from b, so
+ * every row where the two differ must be taken from the one that isn't covered there: b's header
+ * (a see-through one, or its bottom line) lies near b's top, a's input bar or floating button near
+ * a's bottom. `aCovered` says which it is, if known; otherwise the nearer edge decides. The cut
+ * goes in the middle of the longest clean run between b's covers and a's.
+ */
+function chooseCut(a: Gray, b: Gray, o: Overlap, aCovered?: (j: number) => boolean | undefined): number {
+  let lastB = o.b0 - 1
+  let firstA = o.b1
+  const clean: boolean[] = []
+  for (let j = o.b0; j < o.b1; j++) {
+    const ok = exactRows(a, j + o.offset, b, j) === 0
+    clean.push(ok)
+    if (ok) continue
+    if (aCovered?.(j) ?? a.h - (j + o.offset) < j) firstA = Math.min(firstA, j)
+    else lastB = Math.max(lastB, j)
+  }
+  if (lastB >= firstA) return Math.floor((o.b0 + o.b1) / 2)
+  let best: [number, number] = [lastB + 1, lastB + 1]
+  for (let j = lastB + 1, run = -1; j <= firstA; j++) {
+    if (j < firstA && clean[j - o.b0]) {
+      if (run < 0) run = j
+      continue
+    }
+    if (run >= 0 && j - run > best[1] - best[0]) best = [run, j]
+    run = -1
+  }
+  return best[1] > best[0] ? Math.floor((best[0] + best[1]) / 2) : Math.floor((lastB + 1 + firstA) / 2)
+}
+
 /** Searches offsets within ±radius of `guess` at full resolution and returns the best exact overlap. */
-export function refineOverlap(a: Gray, b: Gray, guess: number, radius: number, header = 0): Overlap | null {
-  const maxB0 = header + b.h * headerSlack(header, b.h)
+export function refineOverlap(a: Gray, b: Gray, guess: number, radius: number, window: [number, number] = [0, b.h * 0.4]): Overlap | null {
   const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
   let best: Overlap | null = null
   for (let offset = Math.max(1, guess - radius); offset <= Math.min(a.h - 5, guess + radius); offset++) {
     const o = stretchAt(a, b, offset, bDetail, exactRows)
-    if (o && isReal(o, a, 10, maxB0) && (!best || o.detail > best.detail)) best = o
+    if (o && isReal(o, a, 10, window) && (!best || o.detail > best.detail)) best = o
   }
-  return best
+  return best && { ...best, cut: chooseCut(a, b, best) }
 }
 
 /**
@@ -254,12 +277,46 @@ export function slices(heights: number[], plan: Plan): [number, number][] {
  */
 export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
   const bands = fixedBands(full)
-  const found = small.slice(1).map((_, n) => {
-    const A = full[n]
-    const B = full[n + 1]
+  const h = full[0]?.h ?? 0
+  const search = (n: number, window: [number, number]) => {
     // Roughly where the overlap is, on the small copies; then exactly, at full resolution.
-    const rough = findOverlap(small[n], small[n + 1], k === 1 ? exactRows : scaledRows, bands.top / k)
-    return rough && refineOverlap(A, B, Math.round(rough.offset * k), Math.ceil(k) + 2, bands.top)
+    const rough = findOverlap(small[n], small[n + 1], k === 1 ? exactRows : scaledRows, [window[0] / k, window[1] / k])
+    return rough && refineOverlap(full[n], full[n + 1], Math.round(rough.offset * k), Math.ceil(k) + 2, window)
+  }
+  // First pass: the shared stretch may start anywhere under the bars that never change.
+  let found = small.slice(1).map((_, n) => search(n, [bands.top, bands.top + h * 0.4]))
+  // In a real set every join's stretch starts at the same height, just under the header (solid or
+  // see-through alike). Where most joins agree, search again for the ones that don't: those were
+  // coincidences (a repeated message) or missed.
+  const starts = found.filter((o): o is Overlap => !!o).map((o) => o.b0)
+  if (starts.length >= 2) {
+    const usual = median(starts)
+    const near = (o: Overlap | null) => !!o && Math.abs(o.b0 - usual) <= h * 0.03
+    if (starts.filter((b0) => Math.abs(b0 - usual) <= h * 0.03).length >= 2)
+      found = found.map((o, n) => (near(o) ? o : search(n, [usual - h * 0.03, usual + h * 0.03])))
+  }
+  // Overlays stay put on the screen: a button over the upper screenshot shows up as a difference at
+  // the same screen rows in every join, while the lower one's content there changes from join to
+  // join (and the other way round for a see-through header). Vote across joins to tell them apart.
+  const bin = (y: number) => y >> 2
+  const votesA = new Map<number, number>()
+  const votesB = new Map<number, number>()
+  const diffs = found.map((o, n) => (o ? differences(full[n], full[n + 1], o) : []))
+  found.forEach((o, n) => {
+    if (!o) return
+    for (const j of diffs[n]) {
+      votesA.set(bin(j + o.offset), (votesA.get(bin(j + o.offset)) ?? 0) + 1)
+      votesB.set(bin(j), (votesB.get(bin(j)) ?? 0) + 1)
+    }
+  })
+  found = found.map((o, n) => {
+    if (!o) return o
+    const aCovered = (j: number) => {
+      const va = votesA.get(bin(j + o.offset)) ?? 0
+      const vb = votesB.get(bin(j)) ?? 0
+      return va === vb ? undefined : va > vb
+    }
+    return { ...o, cut: chooseCut(full[n], full[n + 1], o, aCovered) }
   })
   // What covers the screenshots, learned from the joins that matched: the header (where the shared
   // stretch starts in the lower one), anything over the bottom (a button), and the bar itself.

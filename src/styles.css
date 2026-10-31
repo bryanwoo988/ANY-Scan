@@ -3313,7 +3313,7 @@ p {
   border: 1px solid var(--line);
   background: #fff;
 }
-.stitch-preview img {
+.stitch-preview canvas {
   display: block;
   width: 100%;
 }
@@ -3375,4 +3375,24 @@ p {
 }
 .stitch-seam-pill button:disabled {
   opacity: 0.35;
+}
+/* Each join: the upper screenshot's bottom edge (above the line), the lower one's top edge (below). */
+.stitch-seam-pill.above {
+  transform: translateY(calc(-100% - 5px));
+}
+.stitch-seam-pill.below {
+  transform: translateY(5px);
+  background: #6f46d9;
+}
+.stitch-seam-warn {
+  position: absolute;
+  left: 6px;
+  top: 0;
+  transform: translateY(-50%);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #222;
+  font-size: 11px;
+  font-weight: 700;
 }

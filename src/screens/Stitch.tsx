@@ -1,5 +1,5 @@
 // Long Screenshot: join screenshots taken while scrolling into one tall image.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { Screen } from '../components/ui'
 import { createDoc, defaultDocName } from '../lib/db'
@@ -48,8 +48,8 @@ function analyse(shots: Shot[]): Plan {
   return makePlan(small, full, k)
 }
 
-/** Draws rows [from, to) of the stitched image into a canvas of width `width`. */
-function render(shots: Shot[], plan: Plan, width: number, from = 0, to = Infinity): HTMLCanvasElement {
+/** Draws rows [from, to) of the stitched image into a canvas of width `width` (`into`, or a new one). */
+function render(shots: Shot[], plan: Plan, width: number, from = 0, to = Infinity, into?: HTMLCanvasElement): HTMLCanvasElement {
   const parts = slices(
     shots.map((s) => s.canvas.height),
     plan,
@@ -57,7 +57,9 @@ function render(shots: Shot[], plan: Plan, width: number, from = 0, to = Infinit
   const total = parts.reduce((n, [a, b]) => n + b - a, 0)
   const end = Math.min(total, to)
   const s = width / shots[0].canvas.width
-  const out = createCanvas(width, Math.max(1, (end - from) * s))
+  const out = into ?? createCanvas(width, 1)
+  out.width = Math.round(width)
+  out.height = Math.max(1, Math.round((end - from) * s))
   const ctx = ctx2d(out)
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, out.width, out.height)
@@ -76,7 +78,7 @@ export function StitchScreen() {
   const [shots, setShots] = useState<Shot[]>([])
   const [auto, setAuto] = useState<Plan | null>(null)
   const [plan, setPlan] = useState<Plan | null>(null)
-  const [preview, setPreview] = useState<{ url: string; seams: number[]; total: number } | null>(null)
+  const previewRef = useRef<HTMLCanvasElement>(null)
   const name = useRef(defaultDocName(t('tool.stitch')))
 
   useEffect(() => () => shots.forEach((s) => URL.revokeObjectURL(s.url)), [shots])
@@ -119,28 +121,22 @@ export function StitchScreen() {
     return () => window.clearTimeout(id)
   }, [shots])
 
-  useEffect(() => {
-    if (!plan || shots.length < 2) return setPreview(null)
-    const c = render(shots, plan, 480)
+  // Height and join positions come straight from the plan, so the controls respond at once.
+  const preview = useMemo(() => {
+    if (!plan || shots.length < 2) return null
     const parts = slices(
       shots.map((s) => s.canvas.height),
       plan,
     )
-    const total = parts.reduce((n, [a, b]) => n + b - a, 0)
     let y = 0
     const seams = parts.slice(0, -1).map(([a, b]) => (y += b - a))
-    let url = ''
-    let alive = true
-    canvasToBlob(c, 'image/jpeg', 0.85).then((b) => {
-      if (!alive) return
-      url = URL.createObjectURL(b)
-      setPreview({ url, seams, total })
-    })
-    return () => {
-      alive = false
-      if (url) URL.revokeObjectURL(url)
-    }
+    return { seams, total: parts.reduce((n, [a, b]) => n + b - a, 0) }
   }, [plan, shots])
+
+  // The preview is drawn directly into its canvas (no image encoding), on every change.
+  useEffect(() => {
+    if (preview && plan && previewRef.current) render(shots, plan, 480, 0, Infinity, previewRef.current)
+  }, [preview, plan, shots])
 
   const move = (i: number, d: -1 | 1) => {
     const j = i + d
@@ -150,11 +146,21 @@ export function StitchScreen() {
     setShots(next)
   }
   const remove = (i: number) => setShots(shots.filter((_, k) => k !== i))
-  /** ▲ at a join cuts more of the lower screenshot away (the content below moves up). */
-  const nudge = (seam: number, d: number) => {
+  /**
+   * Moves one screenshot's edge at a join: the bottom of the upper one or the top of the lower one.
+   * Like the Top and Bottom controls, the arrow is the direction the edge moves.
+   */
+  const nudge = (seam: number, which: 'aEnd' | 'bStart', d: number) => {
     if (!plan) return
-    const h = shots[seam + 1].canvas.height
-    const joins = plan.joins.map((j, i) => (i === seam ? { ...j, bStart: Math.max(0, Math.min(h - 1, j.bStart + d)) } : j))
+    const ranges = slices(
+      shots.map((s) => s.canvas.height),
+      plan,
+    )
+    const joins = plan.joins.map((j, i) => {
+      if (i !== seam) return j
+      if (which === 'aEnd') return { ...j, aEnd: Math.max(ranges[seam][0] + 1, Math.min(shots[seam].canvas.height, j.aEnd + d)) }
+      return { ...j, bStart: Math.max(0, Math.min(ranges[seam + 1][1] - 1, j.bStart + d)) }
+    })
     setPlan({ ...plan, joins })
   }
   /** Moves the top or bottom edge of the long image; the arrows move the edge. */
@@ -273,10 +279,10 @@ export function StitchScreen() {
             </div>
             <p className="muted small">{t('stitchSeamHint')}</p>
             <div className="stitch-preview">
-              <img src={preview.url} alt="" />
+              <canvas ref={previewRef} />
               <div className="stitch-edge top">
                 <div className="stitch-seam-pill">
-                  <span>{t('stitchTop')}</span>
+                  <span>{t('stitchShotTop', { n: 1 })}</span>
                   <button onClick={() => edge('top', -EDGE_STEP)} disabled={plan.top === 0} aria-label={t('stitchShowMore')}>
                     ▲
                   </button>
@@ -287,7 +293,7 @@ export function StitchScreen() {
               </div>
               <div className="stitch-edge bottom">
                 <div className="stitch-seam-pill">
-                  <span>{t('stitchBottom')}</span>
+                  <span>{t('stitchShotBottom', { n: shots.length })}</span>
                   <button onClick={() => edge('bottom', EDGE_STEP)} aria-label={t('stitchTrimMore')}>
                     ▲
                   </button>
@@ -298,12 +304,22 @@ export function StitchScreen() {
               </div>
               {preview.seams.map((y, i) => (
                 <div key={i} className={`stitch-seam ${plan.joins[i].matched ? '' : 'none'}`} style={{ top: `${(y / preview.total) * 100}%` }}>
-                  <div className="stitch-seam-pill">
-                    <span>{plan.joins[i].matched ? i + 1 : t('stitchNoOverlap')}</span>
-                    <button onClick={() => nudge(i, STEP)} aria-label={t('stitchCutMore')}>
+                  {!plan.joins[i].matched && <span className="stitch-seam-warn">{t('stitchNoOverlap')}</span>}
+                  <div className="stitch-seam-pill above">
+                    <span>{t('stitchShotBottom', { n: i + 1 })}</span>
+                    <button onClick={() => nudge(i, 'aEnd', -STEP)} aria-label={t('stitchTrimMore')}>
                       ▲
                     </button>
-                    <button onClick={() => nudge(i, -STEP)} aria-label={t('stitchCutLess')}>
+                    <button onClick={() => nudge(i, 'aEnd', STEP)} aria-label={t('stitchShowMore')}>
+                      ▼
+                    </button>
+                  </div>
+                  <div className="stitch-seam-pill below">
+                    <span>{t('stitchShotTop', { n: i + 2 })}</span>
+                    <button onClick={() => nudge(i, 'bStart', -STEP)} aria-label={t('stitchShowMore')}>
+                      ▲
+                    </button>
+                    <button onClick={() => nudge(i, 'bStart', STEP)} aria-label={t('stitchTrimMore')}>
                       ▼
                     </button>
                   </div>
