@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import type { IconName } from './components/Icon'
 import { loadJSON, saveJSON } from './lib/settings'
 import type { TKey } from './i18n'
@@ -9,7 +9,7 @@ import { importPdf, PdfPasswordError } from './lib/export'
 export type ToolId =
   | 'smartScan' | 'idCard' | 'ocr' | 'idPhoto' | 'timestamp'
   | 'importImages' | 'importFiles'
-  | 'toWord' | 'pdfToImages' | 'longImage'
+  | 'toWord' | 'pdfToWord' | 'pdfToPpt' | 'pdfToImages' | 'longImage'
   | 'sign' | 'watermark' | 'merge' | 'extract' | 'reorder' | 'lock' | 'compress'
   | 'qr' | 'qrScan' | 'qrCreate' | 'print'
 
@@ -18,6 +18,8 @@ export interface Tool {
   icon: IconName
   color: string
   label: TKey
+  /** Shows a NEW badge until the tool is first opened. Remove a few versions after release. */
+  isNew?: boolean
 }
 
 const C = { green: '#2fbf8f', blue: '#4f7cff', orange: '#ff7a45', purple: '#9b6bff', teal: '#22b8cf', pink: '#f0568c', yellow: '#f5b83d' }
@@ -31,6 +33,8 @@ export const TOOLS: Record<ToolId, Tool> = {
   importImages: { id: 'importImages', icon: 'image', color: C.teal, label: 'tool.importImages' },
   importFiles: { id: 'importFiles', icon: 'folder', color: C.blue, label: 'tool.importFiles' },
   toWord: { id: 'toWord', icon: 'word', color: C.blue, label: 'tool.toWord' },
+  pdfToWord: { id: 'pdfToWord', icon: 'word', color: C.blue, label: 'tool.pdfToWord', isNew: true },
+  pdfToPpt: { id: 'pdfToPpt', icon: 'ppt', color: C.orange, label: 'tool.pdfToPpt', isNew: true },
   pdfToImages: { id: 'pdfToImages', icon: 'images', color: C.teal, label: 'tool.pdfToImages' },
   longImage: { id: 'longImage', icon: 'long', color: C.teal, label: 'tool.longImage' },
   sign: { id: 'sign', icon: 'sign', color: C.green, label: 'tool.sign' },
@@ -50,7 +54,7 @@ export const SECTIONS: { title: TKey; tools: ToolId[] }[] = [
   { title: 'section.scan', tools: ['smartScan', 'idCard', 'ocr', 'idPhoto', 'timestamp'] },
   { title: 'section.qr', tools: ['qrScan', 'qrCreate', 'qr'] },
   { title: 'section.import', tools: ['importImages', 'importFiles'] },
-  { title: 'section.convert', tools: ['toWord', 'pdfToImages', 'longImage'] },
+  { title: 'section.convert', tools: ['pdfToWord', 'pdfToPpt', 'toWord', 'pdfToImages', 'longImage'] },
   { title: 'section.edit', tools: ['sign', 'watermark', 'merge', 'extract', 'reorder', 'lock', 'compress'] },
   { title: 'section.utilities', tools: ['print'] },
 ]
@@ -70,6 +74,28 @@ export function useFavorites(): [ToolId[], (ids: ToolId[]) => void] {
       saveJSON(FAV_KEY, ids)
     },
   ]
+}
+
+// ---------------------------------------------------------------- NEW badges
+
+const SEEN_KEY = 'anyscan.seenNewTools'
+let seenNew: string[] = loadJSON<string[]>(SEEN_KEY, [])
+const seenSubs = new Set<() => void>()
+
+function markSeen(id: ToolId) {
+  if (!TOOLS[id].isNew || seenNew.includes(id)) return
+  seenNew = [...seenNew, id]
+  saveJSON(SEEN_KEY, seenNew)
+  seenSubs.forEach((f) => f())
+}
+
+/** Returns whether a tool should show its NEW badge (new and not opened yet). */
+export function useIsNew(): (id: ToolId) => boolean {
+  const seen = useSyncExternalStore(
+    (f) => (seenSubs.add(f), () => seenSubs.delete(f)),
+    () => seenNew,
+  )
+  return (id) => !!TOOLS[id].isNew && !seen.includes(id)
 }
 
 const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name)
@@ -113,6 +139,7 @@ export function useTools() {
   }
 
   function run(id: ToolId) {
+    markSeen(id)
     switch (id) {
       case 'smartScan':
         return push('camera', { mode: 'scan' })
@@ -130,6 +157,10 @@ export function useTools() {
         return push('camera', { mode: 'timestamp' })
       case 'toWord':
         return push('pick', { title: 'tool.toWord', next: 'ocr', nextParams: { docx: true } })
+      case 'pdfToWord':
+        return push('pick', { title: 'tool.pdfToWord', next: 'convert', nextParams: { target: 'docx' }, passFile: true })
+      case 'pdfToPpt':
+        return push('pick', { title: 'tool.pdfToPpt', next: 'convert', nextParams: { target: 'pptx' }, passFile: true })
       case 'pdfToImages':
         return push('pick', { title: 'tool.pdfToImages', next: 'export', nextParams: { preset: 'jpg' } })
       case 'longImage':

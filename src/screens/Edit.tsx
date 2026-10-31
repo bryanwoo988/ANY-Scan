@@ -14,7 +14,7 @@ import { copyText, shareOrDownload } from '../lib/share'
 import { useApp } from '../state'
 import { useDoc } from './Doc'
 
-const OCR_LANG_LABEL: Record<OcrLang, string> = { eng: 'English', msa: 'Bahasa Melayu', chi_sim: '简体中文', chi_tra: '繁體中文' }
+export const OCR_LANG_LABEL: Record<OcrLang, string> = { eng: 'English', msa: 'Bahasa Melayu', chi_sim: '简体中文', chi_tra: '繁體中文' }
 
 export function OcrScreen({ docId, pageIds, docx, files }: { docId?: string; pageIds?: string[]; docx?: boolean; files?: File[] }) {
   const { t, lang, toast, pickFiles, setTab, home } = useApp()

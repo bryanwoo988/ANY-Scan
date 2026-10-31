@@ -371,7 +371,8 @@ export function ExportScreen({ docId, preset }: { docId: string; preset?: Preset
   )
 }
 
-export function PickScreen({ title, next, nextParams, multi }: { title: TKey; next: string; nextParams?: object; multi?: boolean }) {
+/** `passFile`: a PDF chosen from the phone goes to `next` as `file` instead of being imported first. */
+export function PickScreen({ title, next, nextParams, multi, passFile }: { title: TKey; next: string; nextParams?: object; multi?: boolean; passFile?: boolean }) {
   const { t, replace, setBusy, toast } = useApp()
   const docs = useDocs()
   const { pickFiles } = useApp()
@@ -397,6 +398,7 @@ export function PickScreen({ title, next, nextParams, multi }: { title: TKey; ne
           onClick={() =>
             pickFiles({ accept: 'application/pdf', multiple: !!multi }).then(async (f) => {
               if (!f.length) return
+              if (passFile) return replace(next, { ...nextParams, file: f[0] })
               // Import each PDF as a document first, then continue with the tool.
               const before = new Set((docs ?? []).map((d) => d.id))
               setBusy({ text: t('importing') })

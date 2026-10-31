@@ -27,12 +27,14 @@ export function Screen({ title, right, children, footer, onBack, className }: { 
   )
 }
 
-export function ToolTile({ icon, color, label, onClick, badge }: { icon: IconName; color: string; label: string; onClick: () => void; badge?: string }) {
+export function ToolTile({ icon, color, label, onClick, badge, isNew }: { icon: IconName; color: string; label: string; onClick: () => void; badge?: string; isNew?: boolean }) {
+  const { t } = useApp()
   return (
     <button className="tool" onClick={onClick}>
       <span className="tool-icon" style={{ color, background: `color-mix(in srgb, ${color} 16%, transparent)` }}>
         <Icon name={icon} size={28} />
         {badge && <span className="tool-badge">{badge}</span>}
+        {isNew && <span className="tool-new">{t('newBadge')}</span>}
       </span>
       <span className="tool-label">{label}</span>
     </button>

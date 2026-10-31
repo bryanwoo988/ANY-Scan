@@ -10,7 +10,28 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.10.0',
+    notes: {
+      en: [
+        'New: PDF to Word — editable text with headings and paragraphs kept, or "Exact look" with every page as a picture. Scanned pages are read with OCR',
+        'New: PDF to PowerPoint — one slide per page that looks exactly like the PDF, or editable text boxes in the same places',
+        'Both are in Tools › Convert and work on your phone; the file never leaves it',
+        'New tools now show a NEW badge until you try them',
+        '"To Word" is now called "Scan to Word"',
+      ],
+      zh: ['新功能：PDF 转 Word——可编辑文字（保留标题和段落），或「保持原样」把每页作为图片放进去。扫描的页面会用 OCR 识别', '新功能：PDF 转 PPT——每页一张幻灯片，和 PDF 一模一样；或变成同样位置的可编辑文本框', '两个都在「工具 › 转换」，全部在手机上完成，文件不会上传', '新工具会显示「新」标记，用过一次后消失', '「转 Word」改名为「扫描转 Word」'],
+      ms: [
+        'Baharu: PDF ke Word — teks boleh edit dengan tajuk dan perenggan dikekalkan, atau "Rupa asal" dengan setiap halaman sebagai gambar. Halaman imbasan dibaca dengan OCR',
+        'Baharu: PDF ke PowerPoint — satu slaid setiap halaman yang sama seperti PDF, atau kotak teks boleh edit di tempat yang sama',
+        'Kedua-duanya dalam Alatan › Tukar dan berjalan di telefon anda; fail tidak pernah keluar',
+        'Alatan baharu kini menunjukkan lencana BAHARU sehingga anda mencubanya',
+        '"Ke Word" kini dipanggil "Imbas ke Word"',
+      ],
+    },
+  },
+  {
     version: '1.9.1',
+    released: '2026-10-31T04:24:36Z',
     notes: {
       en: ['Watermark: new "Two corners" style — slanted text across the top-left and bottom-right corners of the card (or top-right and bottom-left), half on the card and half on the paper, the way people mark IC copies'],
       zh: ['水印：新增「对角」款式——斜写的字跨过证件的左上角和右下角（或右上角和左下角），一半在证件上、一半在纸上，就像大家在 IC 复印件上写的那样'],

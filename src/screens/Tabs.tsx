@@ -11,7 +11,9 @@ import { useDocActions } from '../components/DocActions'
 import { useDragSelect } from '../components/dragSelect'
 import { formatBytes, FILTERS } from '../lib/image'
 import { useAlbums, useApp, useDocs } from '../state'
-import { FAVORITES_MAX, SECTIONS, TOOLS, useFavorites, useTools, type ToolId } from '../tools'
+import { FAVORITES_MAX, SECTIONS, TOOLS, useFavorites, useIsNew, useTools, type ToolId } from '../tools'
+
+const ALL_TOOLS = Object.keys(TOOLS) as ToolId[]
 
 function useToolSearch(q: string): ToolId[] {
   return useMemo(() => {
@@ -94,6 +96,7 @@ function FavoritesSheet({ open, onClose, favs, setFavs }: { open: boolean; onClo
 export function HomeTab() {
   const { t, push, setTab } = useApp()
   const { run } = useTools()
+  const isNew = useIsNew()
   const docs = useDocs()
   const [q, setQ] = useState('')
   const found = useToolSearch(q)
@@ -117,7 +120,7 @@ export function HomeTab() {
       {q ? (
         <div className="tool-grid pad">
           {found.map((id) => (
-            <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} />
+            <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} isNew={isNew(id)} />
           ))}
           {!found.length && <p className="muted center-text full">{t('noResults')}</p>}
         </div>
@@ -133,9 +136,10 @@ export function HomeTab() {
           </div>
           <div className="tool-grid pad">
             {favs.map((id) => (
-              <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} />
+              <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} isNew={isNew(id)} />
             ))}
-            <ToolTile icon="grid" color="#8a94a6" label={t('all')} onClick={() => setTab('tools')} />
+            {/* New tools that aren't pinned are announced on "All". */}
+            <ToolTile icon="grid" color="#8a94a6" label={t('all')} onClick={() => setTab('tools')} isNew={ALL_TOOLS.some((id) => isNew(id) && !favs.includes(id))} />
           </div>
           <FavoritesSheet open={editFavs} onClose={() => setEditFavs(false)} favs={favs} setFavs={setFavs} />
           {actions.sheets}
@@ -379,6 +383,7 @@ export function DocsTab() {
 export function ToolsTab() {
   const { t } = useApp()
   const { run } = useTools()
+  const isNew = useIsNew()
   return (
     <div className="tab-page">
       <div className="topbar">
@@ -389,7 +394,7 @@ export function ToolsTab() {
           <h2>{t(s.title)}</h2>
           <div className="tool-grid">
             {s.tools.map((id) => (
-              <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} />
+              <ToolTile key={id} icon={TOOLS[id].icon} color={TOOLS[id].color} label={t(TOOLS[id].label)} onClick={() => run(id)} isNew={isNew(id)} />
             ))}
           </div>
         </section>
