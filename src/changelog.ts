@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.12.0',
+    notes: {
+      en: [
+        'New: Long Screenshot — join screenshots taken while scrolling (a chat, an article, a receipt) into one long image (Tools › Scan)',
+        'Repeated parts are cut out automatically, and the status bar and tab bar appear only once, even if the clock changed between screenshots',
+        'Reorder screenshots, check each join and fine-tune it with ▲ / ▼; save as an image or into AnyScan (then export as PDF)',
+      ],
+      zh: ['新功能：长截图——把滑动时截的几张图（聊天记录、文章、收据）拼成一张长图（工具 › 扫描）', '会自动去掉重复的部分，状态栏和底部栏只保留一次，就算截图之间时间变了也可以', '可以调整截图顺序、检查每个接缝并用 ▲ / ▼ 微调；可保存为图片或存进 AnyScan（之后可导出 PDF）'],
+      ms: [
+        'Baharu: Tangkapan Skrin Panjang — sambung tangkapan skrin yang diambil semasa menatal (sembang, artikel, resit) menjadi satu imej panjang (Alatan › Imbas)',
+        'Bahagian berulang dibuang secara automatik, dan bar status serta bar tab muncul sekali sahaja, walaupun jam berubah antara tangkapan skrin',
+        'Susun semula tangkapan skrin, semak setiap sambungan dan laraskan dengan ▲ / ▼; simpan sebagai imej atau ke AnyScan (kemudian eksport sebagai PDF)',
+      ],
+    },
+  },
+  {
     version: '1.11.0',
+    released: '2026-10-31T07:30:34Z',
     notes: {
       en: [
         'New: Convert to Excel — turn tables in photos, scans and PDFs into an editable .xlsx (Tools › Convert)',

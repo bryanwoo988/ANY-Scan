@@ -3202,3 +3202,158 @@ p {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------- Long Screenshot */
+.stitch-intro {
+  text-align: center;
+  padding: 8px 4px 0;
+}
+.stitch-intro h2 {
+  font-size: 19px;
+  margin: 14px 0 10px;
+}
+.stitch-intro ol {
+  text-align: left;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.stitch-intro li + li {
+  margin-top: 8px;
+}
+.stitch-art {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+.stitch-art span {
+  position: absolute;
+  left: 24px;
+  width: 72px;
+  height: 52px;
+  border-radius: 8px;
+  border: 2px solid #9b6bff;
+  background: color-mix(in srgb, #9b6bff 12%, var(--card));
+}
+.stitch-art span:nth-child(1) { top: 0; }
+.stitch-art span:nth-child(2) { top: 34px; left: 30px; opacity: 0.9; }
+.stitch-art span:nth-child(3) { top: 68px; left: 24px; opacity: 0.8; }
+.stitch-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 -16px;
+  padding: 4px 16px 6px;
+  scrollbar-width: none;
+}
+.stitch-thumb {
+  position: relative;
+  flex: none;
+  width: 74px;
+}
+.stitch-thumb img {
+  width: 74px;
+  height: 130px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  display: block;
+}
+.stitch-n {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #9b6bff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.stitch-thumb-btns {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.stitch-thumb-btns button {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--card-2);
+}
+.stitch-thumb-btns button:disabled {
+  opacity: 0.3;
+}
+.stitch-add {
+  flex: none;
+  width: 74px;
+  height: 130px;
+  border-radius: 10px;
+  border: 2px dashed var(--line);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.stitch-info {
+  align-items: center;
+}
+.stitch-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.stitch-preview img {
+  display: block;
+  width: 100%;
+}
+.stitch-seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed #9b6bff;
+}
+.stitch-seam.none {
+  border-top-color: var(--warn);
+}
+.stitch-seam-pill {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 2px 8px;
+  border-radius: 999px;
+  background: #9b6bff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.stitch-seam.none .stitch-seam-pill {
+  background: var(--warn);
+  color: #222;
+}
+.stitch-seam-pill button {
+  width: 30px;
+  height: 28px;
+  border-radius: 999px;
+  color: inherit;
+  font-size: 13px;
+}
+.stitch-seam-pill button:active {
+  background: rgba(255, 255, 255, 0.25);
+}
