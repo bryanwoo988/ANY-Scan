@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.13.1',
+    notes: {
+      en: [
+        'Long Screenshot from a screen recording is much quicker and more dependable: it no longer slows to a crawl on some phones, and can no longer get stuck',
+        'Every frame used is checked to be exactly the right one, so joins line up on the first try',
+        'Joining is about 3x faster, for screenshots too',
+      ],
+      zh: ['长截图的录屏功能快很多也更稳定：在某些手机上不会再变得很慢，也不会再卡住', '每一张用到的画面都会确认是正确的那一张，接缝一次就对准', '拼接速度快了大约 3 倍，截图拼接也一样'],
+      ms: [
+        'Tangkapan Skrin Panjang daripada rakaman skrin jauh lebih pantas dan boleh diharap: tidak lagi menjadi sangat perlahan pada sesetengah telefon, dan tidak lagi tersekat',
+        'Setiap bingkai yang digunakan disemak supaya tepat, jadi sambungan sejajar pada cubaan pertama',
+        'Penyambungan kira-kira 3x lebih pantas, untuk tangkapan skrin juga',
+      ],
+    },
+  },
+  {
     version: '1.13.0',
+    released: '2026-10-31T10:52:07Z',
     notes: {
       en: [
         'Long Screenshot from a screen recording: record your screen while scrolling through a chat, choose the video, and AnyScan picks sharp, overlapping frames and joins them for you',

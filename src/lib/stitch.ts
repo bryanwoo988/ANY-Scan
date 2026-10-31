@@ -180,17 +180,42 @@ function stretchAt(a: Gray, b: Gray, offset: number, bDetail: boolean[], cmp: Co
  * coincidence (the same message twice, repeated rows of a table).
  */
 const isReal = (o: Overlap | null, a: Gray, minRows: number, window: [number, number]): o is Overlap =>
-  !!o && o.detail >= 5 && o.b1 - o.b0 >= minRows && o.b0 >= window[0] && o.b0 <= window[1] && o.b1 + o.offset >= a.h * 0.5
+  // Starting a little higher is fine as long as it runs on past the window (a see-through header
+  // can match the content behind it); starting lower than the window isn't.
+  !!o && o.detail >= 5 && o.b1 - o.b0 >= minRows && o.b0 <= window[1] && (o.b0 >= window[0] || o.b1 >= window[0] + minRows) && o.b1 + o.offset >= a.h * 0.5
 
-/** Finds where b continues a (b scrolled further down): the offset with the most shared text. */
+/**
+ * Finds where b continues a (b scrolled further down): the offset with the most shared text.
+ * A quick, sparse comparison of every offset picks the likeliest few for the full matching; if
+ * none of those holds up, every offset is tried.
+ */
 export function findOverlap(a: Gray, b: Gray, cmp: Compare = exactRows, window: [number, number] = [0, b.h * 0.4]): Overlap | null {
   const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
-  let best: Overlap | null = null
-  for (let offset = 1; offset < a.h - 4; offset++) {
-    const o = stretchAt(a, b, offset, bDetail, cmp)
-    if (o && isReal(o, a, 10, window) && (!best || o.detail > best.detail || (o.detail === best.detail && o.b1 - o.b0 > best.b1 - best.b0))) best = o
+  const bestOf = (offsets: Iterable<number>) => {
+    let best: Overlap | null = null
+    for (const offset of offsets) {
+      const o = stretchAt(a, b, offset, bDetail, cmp)
+      if (o && isReal(o, a, 10, window) && (!best || o.detail > best.detail || (o.detail === best.detail && o.b1 - o.b0 > best.b1 - best.b0))) best = o
+    }
+    return best
   }
-  return best
+  const quick: { offset: number; d: number }[] = []
+  const y0 = Math.round(Math.max(0, window[0]))
+  for (let offset = 1; offset < a.h - 4; offset++) {
+    let sum = 0
+    let n = 0
+    for (let j = y0; j < Math.min(b.h, a.h - offset); j += 3) {
+      const ra = (j + offset) * a.w
+      const rb = j * b.w
+      for (let x = 0; x < a.w; x += 4, n++) sum += Math.abs(a.data[ra + x] - b.data[rb + x])
+    }
+    // Enough rows compared to mean something.
+    if (n >= ((b.h * 0.1) / 3) * (a.w / 4)) quick.push({ offset, d: sum / n })
+  }
+  quick.sort((p, q) => p.d - q.d)
+  const near = new Set<number>()
+  for (const q of quick.slice(0, 6)) for (let o = q.offset - 1; o <= q.offset + 1; o++) if (o >= 1 && o < a.h - 4) near.add(o)
+  return bestOf(near) ?? bestOf(Array.from({ length: Math.max(0, a.h - 5) }, (_, i) => i + 1))
 }
 
 /** Rows j of the shared stretch (b's rows) where a and b differ. */
@@ -251,8 +276,28 @@ function overlapMad(a: Gray, b: Gray, offset: number, b0: number, b1: number): n
  */
 export function refineOverlap(a: Gray, b: Gray, guess: number, radius: number, window: [number, number] = [0, b.h * 0.4], m: Matcher = SCREENSHOTS): Overlap | null {
   const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
+  const lo = Math.max(1, guess - radius)
+  const hi = Math.min(a.h - 5, guess + radius)
+  // A quick, sparse comparison of every offset in range first; the full row-by-row matching then
+  // only runs around the three most alike (a fraction of the work, on a phone that matters).
+  const quick: { offset: number; d: number }[] = []
+  const y0 = Math.round(Math.max(window[0], 0))
+  for (let offset = lo; offset <= hi; offset++) {
+    let sum = 0
+    let n = 0
+    const end = Math.min(b.h, a.h - offset)
+    for (let j = y0; j < end; j += 6) {
+      const ra = (j + offset) * a.w
+      const rb = j * b.w
+      for (let x = 0; x < a.w; x += 8, n++) sum += Math.abs(a.data[ra + x] - b.data[rb + x])
+    }
+    if (n) quick.push({ offset, d: sum / n })
+  }
+  quick.sort((p, q) => p.d - q.d)
+  const tryOffsets = new Set<number>()
+  for (const q of quick.slice(0, 3)) for (let o = q.offset - 2; o <= q.offset + 2; o++) if (o >= lo && o <= hi) tryOffsets.add(o)
   const cands: Overlap[] = []
-  for (let offset = Math.max(1, guess - radius); offset <= Math.min(a.h - 5, guess + radius); offset++) {
+  for (const offset of tryOffsets) {
     const o = stretchAt(a, b, offset, bDetail, m.exact)
     if (o && isReal(o, a, 10, window)) cands.push(o)
   }
