@@ -5,7 +5,8 @@ import { Screen } from '../components/ui'
 import { createDoc, defaultDocName } from '../lib/db'
 import { blobToCanvas, canvasToBlob, createCanvas, ctx2d } from '../lib/image'
 import { shareOrDownload } from '../lib/share'
-import { makePlan, slices, toGray, type Plan } from '../lib/stitch'
+import { makePlan, slices, toGray, VIDEO, type Matcher, type Plan } from '../lib/stitch'
+import { framesFromVideo } from '../lib/video'
 import { useApp } from '../state'
 
 const SMALL_W = 240
@@ -37,7 +38,7 @@ async function loadShots(files: File[]): Promise<Shot[]> {
   })
 }
 
-function analyse(shots: Shot[]): Plan {
+function analyse(shots: Shot[], m?: Matcher): Plan {
   const full = shots.map((s) => toGray(ctx2d(s.canvas).getImageData(0, 0, s.canvas.width, s.canvas.height)))
   const k = shots[0].canvas.width / SMALL_W
   const small = shots.map((s) => {
@@ -45,7 +46,7 @@ function analyse(shots: Shot[]): Plan {
     ctx2d(c).drawImage(s.canvas, 0, 0, c.width, c.height)
     return toGray(ctx2d(c).getImageData(0, 0, c.width, c.height))
   })
-  return makePlan(small, full, k)
+  return makePlan(small, full, k, m)
 }
 
 /** Draws rows [from, to) of the stitched image into a canvas of width `width` (`into`, or a new one). */
@@ -83,6 +84,9 @@ export function StitchScreen() {
 
   useEffect(() => () => shots.forEach((s) => URL.revokeObjectURL(s.url)), [shots])
 
+  // Frames from a screen recording are compressed, so they're matched more loosely.
+  const [fromVideo, setFromVideo] = useState(false)
+
   const choose = async (more: boolean) => {
     const files = await pickFiles({ accept: 'image/*', multiple: true })
     if (!files.length) return
@@ -91,10 +95,32 @@ export function StitchScreen() {
       const all = more ? [...shots.map((s) => s.file), ...files] : files
       const loaded = await loadShots(all)
       if (loaded.length < 2) toast(t('stitchNeedTwo'))
+      if (!more) setFromVideo(false)
       setShots(loaded)
     } catch (e) {
       console.error(e)
       toast(t('importFailed', { name: files.map((f) => f.name).join(', ') }))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** A screen recording: follow the scroll through the video and use a few sharp, overlapping frames. */
+  const chooseVideo = async () => {
+    const [file] = await pickFiles({ accept: 'video/*' })
+    if (!file) return
+    setBusy({ text: t('readingVideo'), progress: 0 })
+    try {
+      const files = await framesFromVideo(file, name.current, (f) => setBusy({ text: t('readingVideo'), progress: f }))
+      if (files.length < 2) {
+        toast(t('videoNoScroll'))
+        return
+      }
+      setFromVideo(true)
+      setShots(await loadShots(files))
+    } catch (e) {
+      console.error(e)
+      toast(t('videoFailed'))
     } finally {
       setBusy(null)
     }
@@ -111,7 +137,7 @@ export function StitchScreen() {
     // Let the busy overlay paint before the (synchronous) analysis.
     const id = window.setTimeout(() => {
       try {
-        const p = analyse(shots)
+        const p = analyse(shots, fromVideo ? VIDEO : undefined)
         setAuto(p)
         setPlan(p)
       } finally {
@@ -119,7 +145,7 @@ export function StitchScreen() {
       }
     }, 30)
     return () => window.clearTimeout(id)
-  }, [shots])
+  }, [shots, fromVideo])
 
   // Height and join positions come straight from the plan, so the controls respond at once.
   const preview = useMemo(() => {
@@ -240,6 +266,13 @@ export function StitchScreen() {
               <li>{t('stitchStep2')}</li>
               <li>{t('stitchStep3')}</li>
             </ol>
+            <div className="stitch-or">
+              <span>{t('or')}</span>
+            </div>
+            <button className="btn soft block" onClick={chooseVideo}>
+              <Icon name="video" /> {t('stitchFromVideo')}
+            </button>
+            <p className="muted small">{t('stitchVideoHint')}</p>
           </div>
         )}
 

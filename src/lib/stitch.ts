@@ -92,6 +92,27 @@ const exactRows: Compare = (a, ya, b, yb) => {
   return rowDiff(a, ya, b, yb, 2) <= 0.2 ? 1 : 2
 }
 
+/** How rows are judged at full resolution: whether they match, and whether a row is free of any overlay. */
+export interface Matcher {
+  exact: Compare
+  clean: (a: Gray, ya: number, b: Gray, yb: number) => boolean
+}
+
+/** Screenshots are lossless: identical content is identical pixels. */
+const SCREENSHOTS: Matcher = {
+  exact: exactRows,
+  clean: (a, ya, b, yb) => rowDiff(a, ya, b, yb, 1, 10) <= 0.005,
+}
+
+/**
+ * Frames of a screen recording are compressed, and the same content is compressed differently in
+ * each frame, so differences of up to ~30 grey levels are noise. Overlays still differ far more.
+ */
+export const VIDEO: Matcher = {
+  exact: (a, ya, b, yb) => (rowDiff(a, ya, b, yb, 2, 32) <= 0.03 ? 0 : rowDiff(a, ya, b, yb, 2, 44) <= 0.25 ? 1 : 2),
+  clean: (a, ya, b, yb) => rowDiff(a, ya, b, yb, 1, 32) <= 0.01,
+}
+
 /**
  * Scaled-down copies shift by fractions of a row, which blurs text edges, so they are compared by
  * average difference instead.
@@ -173,9 +194,9 @@ export function findOverlap(a: Gray, b: Gray, cmp: Compare = exactRows, window: 
 }
 
 /** Rows j of the shared stretch (b's rows) where a and b differ. */
-function differences(a: Gray, b: Gray, o: Overlap): number[] {
+function differences(a: Gray, b: Gray, o: Overlap, m: Matcher): number[] {
   const out: number[] = []
-  for (let j = o.b0; j < o.b1; j++) if (exactRows(a, j + o.offset, b, j) !== 0) out.push(j)
+  for (let j = o.b0; j < o.b1; j++) if (m.exact(a, j + o.offset, b, j) !== 0) out.push(j)
   return out
 }
 
@@ -186,12 +207,12 @@ function differences(a: Gray, b: Gray, o: Overlap): number[] {
  * a's bottom. `aCovered` says which it is, if known; otherwise the nearer edge decides. The cut
  * goes in the middle of the longest clean run between b's covers and a's.
  */
-function chooseCut(a: Gray, b: Gray, o: Overlap, aCovered?: (j: number) => boolean | undefined): number {
+function chooseCut(a: Gray, b: Gray, o: Overlap, m: Matcher, aCovered?: (j: number) => boolean | undefined): number {
   let lastB = o.b0 - 1
   let firstA = o.b1
   const clean: boolean[] = []
   for (let j = o.b0; j < o.b1; j++) {
-    const ok = exactRows(a, j + o.offset, b, j) === 0
+    const ok = m.exact(a, j + o.offset, b, j) === 0
     clean.push(ok)
     if (ok) continue
     if (aCovered?.(j) ?? a.h - (j + o.offset) < j) firstA = Math.min(firstA, j)
@@ -210,29 +231,55 @@ function chooseCut(a: Gray, b: Gray, o: Overlap, aCovered?: (j: number) => boole
   return best[1] > best[0] ? Math.floor((best[0] + best[1]) / 2) : Math.floor((lastB + 1 + firstA) / 2)
 }
 
-/** Searches offsets within ±radius of `guess` at full resolution and returns the best exact overlap. */
-export function refineOverlap(a: Gray, b: Gray, guess: number, radius: number, window: [number, number] = [0, b.h * 0.4]): Overlap | null {
-  const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
-  let best: Overlap | null = null
-  for (let offset = Math.max(1, guess - radius); offset <= Math.min(a.h - 5, guess + radius); offset++) {
-    const o = stretchAt(a, b, offset, bDetail, exactRows)
-    if (o && isReal(o, a, 10, window) && (!best || o.detail > best.detail)) best = o
+/** Mean difference between b's rows [b0, b1) and a's rows at `offset` (sampled). */
+function overlapMad(a: Gray, b: Gray, offset: number, b0: number, b1: number): number {
+  let sum = 0
+  let n = 0
+  const step = Math.max(1, Math.floor(a.w / 300))
+  for (let j = b0; j < b1; j += 2) {
+    const ra = (j + offset) * a.w
+    const rb = j * b.w
+    for (let x = 0; x < a.w; x += step, n++) sum += Math.abs(a.data[ra + x] - b.data[rb + x])
   }
-  return best && { ...best, cut: chooseCut(a, b, best) }
+  return n ? sum / n : Infinity
+}
+
+/**
+ * Searches offsets within ±radius of `guess` at full resolution and returns the best overlap.
+ * With a forgiving matcher (video) neighbouring offsets can match about as many rows, so among the
+ * offsets that match nearly the most, the one whose pixels differ least wins.
+ */
+export function refineOverlap(a: Gray, b: Gray, guess: number, radius: number, window: [number, number] = [0, b.h * 0.4], m: Matcher = SCREENSHOTS): Overlap | null {
+  const bDetail = Array.from({ length: b.h }, (_, y) => rowDetail(b, y))
+  const cands: Overlap[] = []
+  for (let offset = Math.max(1, guess - radius); offset <= Math.min(a.h - 5, guess + radius); offset++) {
+    const o = stretchAt(a, b, offset, bDetail, m.exact)
+    if (o && isReal(o, a, 10, window)) cands.push(o)
+  }
+  if (!cands.length) return null
+  const most = Math.max(...cands.map((o) => o.detail))
+  let best: Overlap | null = null
+  let bestMad = Infinity
+  for (const o of cands) {
+    if (o.detail < most * 0.8) continue
+    const d = overlapMad(a, b, o.offset, o.b0, o.b1)
+    if (d < bestMad) (bestMad = d), (best = o)
+  }
+  return best && { ...best, cut: chooseCut(a, b, best, m) }
 }
 
 /**
  * Walking down from B row `from`, the first row where A is covered: `upTo` 0 stops at anything
  * (a floating button), 1 only at a row that doesn't match at all (an input bar across the width).
  */
-function coveredFrom(a: Gray, b: Gray, offset: number, from: number, upTo: 0 | 1): number {
+function coveredFrom(a: Gray, b: Gray, offset: number, from: number, upTo: 0 | 1, m: Matcher): number {
   let j = from
   let miss = 0
   let lastGood = from
   while (j < b.h && j + offset < a.h) {
-    // Clean rows at full resolution match almost perfectly, so even a faint white button on a light
-    // background shows up here; a bar across the width doesn't match even roughly.
-    const ok = upTo === 0 ? rowDiff(a, j + offset, b, j, 1, 10) <= 0.005 : exactRows(a, j + offset, b, j) <= 1
+    // Clean rows match almost perfectly, so even a faint white button on a light background shows
+    // up here; a bar across the width doesn't match even roughly.
+    const ok = upTo === 0 ? m.clean(a, j + offset, b, j) : m.exact(a, j + offset, b, j) <= 1
     if (ok) (lastGood = j), (miss = 0)
     else if (++miss > 1) break
     j++
@@ -275,25 +322,29 @@ export function slices(heights: number[], plan: Plan): [number, number][] {
  * removes whatever covers the content at the bottom (an input bar, a "scroll down" button),
  * measured on the joins; the top is kept.
  */
-export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
+export function makePlan(small: Gray[], full: Gray[], k: number, m: Matcher = SCREENSHOTS): Plan {
   const bands = fixedBands(full)
   const h = full[0]?.h ?? 0
   const search = (n: number, window: [number, number]) => {
     // Roughly where the overlap is, on the small copies; then exactly, at full resolution.
     const rough = findOverlap(small[n], small[n + 1], k === 1 ? exactRows : scaledRows, [window[0] / k, window[1] / k])
-    return rough && refineOverlap(full[n], full[n + 1], Math.round(rough.offset * k), Math.ceil(k) + 2, window)
+    return rough && refineOverlap(full[n], full[n + 1], Math.round(rough.offset * k), Math.ceil(k * 4) + 4, window, m)
   }
   // First pass: the shared stretch may start anywhere under the bars that never change.
-  let found = small.slice(1).map((_, n) => search(n, [bands.top, bands.top + h * 0.4]))
+  // (A little above them too: the rows just under a header can match as well, and in video the
+  // edge of the bars is blurred by compression.)
+  let found = small.slice(1).map((_, n) => search(n, [Math.max(0, bands.top - h * 0.15), bands.top + h * 0.4]))
   // In a real set every join's stretch starts at the same height, just under the header (solid or
   // see-through alike). Where most joins agree, search again for the ones that don't: those were
   // coincidences (a repeated message) or missed.
   const starts = found.filter((o): o is Overlap => !!o).map((o) => o.b0)
   if (starts.length >= 2) {
     const usual = median(starts)
-    const near = (o: Overlap | null) => !!o && Math.abs(o.b0 - usual) <= h * 0.03
-    if (starts.filter((b0) => Math.abs(b0 - usual) <= h * 0.03).length >= 2)
-      found = found.map((o, n) => (near(o) ? o : search(n, [usual - h * 0.03, usual + h * 0.03])))
+    // Video frames are noisier, so where a stretch starts is less exact.
+    const slack = h * (m === SCREENSHOTS ? 0.03 : 0.08)
+    const near = (o: Overlap | null) => !!o && Math.abs(o.b0 - usual) <= slack
+    if (starts.filter((b0) => Math.abs(b0 - usual) <= slack).length >= 2)
+      found = found.map((o, n) => (near(o) ? o : search(n, [usual - slack, usual + slack])))
   }
   // Overlays stay put on the screen: a button over the upper screenshot shows up as a difference at
   // the same screen rows in every join, while the lower one's content there changes from join to
@@ -301,7 +352,7 @@ export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
   const bin = (y: number) => y >> 2
   const votesA = new Map<number, number>()
   const votesB = new Map<number, number>()
-  const diffs = found.map((o, n) => (o ? differences(full[n], full[n + 1], o) : []))
+  const diffs = found.map((o, n) => (o ? differences(full[n], full[n + 1], o, m) : []))
   found.forEach((o, n) => {
     if (!o) return
     for (const j of diffs[n]) {
@@ -316,7 +367,7 @@ export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
       const vb = votesB.get(bin(j)) ?? 0
       return va === vb ? undefined : va > vb
     }
-    return { ...o, cut: chooseCut(full[n], full[n + 1], o, aCovered) }
+    return { ...o, cut: chooseCut(full[n], full[n + 1], o, m, aCovered) }
   })
   // What covers the screenshots, learned from the joins that matched: the header (where the shared
   // stretch starts in the lower one), anything over the bottom (a button), and the bar itself.
@@ -328,8 +379,8 @@ export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
     const A = full[n]
     const B = full[n + 1]
     headers.push(ov.b0)
-    covers.push(A.h - (coveredFrom(A, B, ov.offset, ov.cut, 0) + ov.offset))
-    bars.push(A.h - (coveredFrom(A, B, ov.offset, ov.cut, 1) + ov.offset))
+    covers.push(A.h - (coveredFrom(A, B, ov.offset, ov.cut, 0, m) + ov.offset))
+    bars.push(A.h - (coveredFrom(A, B, ov.offset, ov.cut, 1, m) + ov.offset))
   })
   const top = headers.length ? median(headers) : bands.top
   const bar = bars.length ? median(bars) : bands.bottom
@@ -344,6 +395,10 @@ export function makePlan(small: Gray[], full: Gray[], k: number): Plan {
   // button is invisible over a light part of the page, so each join may see less of it: take the most.
   // A little extra catches soft shadows too faint to measure.
   const lastH = full[full.length - 1]?.h ?? 0
-  const bottom = covers.length ? Math.max(...covers) + (Math.max(...covers) > 0 ? Math.round(lastH * 0.01) : 0) : bands.bottom
+  // Take the largest cover that another join agrees with (within 3%), so one noisy measurement
+  // (video compression) can't trim away content; with fewer than three joins, simply the largest.
+  const agreed = covers.filter((c) => covers.filter((d) => Math.abs(d - c) <= lastH * 0.03).length >= 2)
+  const cover = !covers.length ? 0 : covers.length < 3 ? Math.max(...covers) : agreed.length ? Math.max(...agreed) : median(covers)
+  const bottom = covers.length ? cover + (cover > 0 ? Math.round(lastH * 0.01) : 0) : bands.bottom
   return { joins, top: 0, bottom: Math.max(0, Math.min(bottom, Math.round(lastH * 0.35))) }
 }

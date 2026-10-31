@@ -10,7 +10,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.13.0',
+    notes: {
+      en: [
+        'Long Screenshot from a screen recording: record your screen while scrolling through a chat, choose the video, and AnyScan picks sharp, overlapping frames and joins them for you',
+        'Control Center at the start and end of the recording is left out automatically; the edges and joins can still be adjusted with ▲ / ▼',
+        'Works on slower phones too (it just takes a little longer). Text is slightly less crisp than with screenshots, because videos are compressed',
+      ],
+      zh: ['长截图支持录屏：一边录屏一边滑过对话，选择这段影片，AnyScan 会自动挑出清楚又有重叠的画面并拼好', '录屏开头和结尾的控制中心会自动去掉；边缘和接缝一样可以用 ▲ / ▼ 调整', '较慢的手机也能用（只是会久一点）。因为影片有压缩，字会比截图稍微糊一点'],
+      ms: [
+        'Tangkapan Skrin Panjang daripada rakaman skrin: rakam skrin sambil menatal sembang, pilih video itu, dan AnyScan memilih bingkai yang jelas dan bertindih lalu menyambungnya untuk anda',
+        'Pusat Kawalan di awal dan akhir rakaman ditinggalkan secara automatik; tepi dan sambungan masih boleh dilaraskan dengan ▲ / ▼',
+        'Berfungsi pada telefon yang lebih perlahan juga (cuma mengambil masa sedikit lagi). Teks kurang tajam sedikit berbanding tangkapan skrin kerana video dimampatkan',
+      ],
+    },
+  },
+  {
     version: '1.12.3',
+    released: '2026-10-31T08:53:57Z',
     notes: {
       en: ['Long Screenshot: press and hold ▲ / ▼ to move an edge quickly — it speeds up the longer you hold and stops when you let go. A tap still moves one small step'],
       zh: ['长截图：按住 ▲ / ▼ 就能快速移动边缘——按得越久移动越快，放开就停。点一下还是移动一小格'],

@@ -3403,3 +3403,21 @@ p {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+.stitch-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.stitch-or::before,
+.stitch-or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.stitch-intro .btn + .muted {
+  margin-top: 8px;
+  text-align: left;
+}
