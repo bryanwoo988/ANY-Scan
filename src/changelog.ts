@@ -10,7 +10,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.10.1',
+    notes: {
+      en: ['"Scan to Word" is now called "To Text" (it still saves as text or Word)'],
+      zh: ['「扫描转 Word」改名为「转文字」（一样可以保存为文字或 Word）'],
+      ms: ['"Imbas ke Word" kini dipanggil "Ke Teks" (masih boleh disimpan sebagai teks atau Word)'],
+    },
+  },
+  {
     version: '1.10.0',
+    released: '2026-10-31T05:38:26Z',
     notes: {
       en: [
         'New: PDF to Word — editable text with headings and paragraphs kept, or "Exact look" with every page as a picture. Scanned pages are read with OCR',
