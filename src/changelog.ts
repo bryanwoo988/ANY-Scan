@@ -10,7 +10,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.7.2',
+    notes: {
+      en: ['Timestamp: turn the time & info off to put only your watermarks on the photo (quick "Time on/off" button in the camera; saved with combinations)'],
+      zh: ['时间水印：可关闭时间与信息，照片上只保留你的水印（相机里有「时间：开/关」快捷按钮，也会保存在组合里）'],
+      ms: ['Cap masa: matikan masa & maklumat untuk letak hanya tera air anda pada foto (butang pantas "Masa: on/off" dalam kamera; disimpan bersama gabungan)'],
+    },
+  },
+  {
     version: '1.7.1',
+    released: '2026-10-30T22:48:43Z',
     notes: {
       en: ['Fixed: on some iPhones (e.g. iPhone 17 Pro Max) the page was taller than the screen and the bottom tab bar was only visible after scrolling down'],
       zh: ['修复：部分 iPhone（例如 iPhone 17 Pro Max）页面比屏幕高，底部导航栏要往下滑才看得到'],

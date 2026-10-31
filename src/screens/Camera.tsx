@@ -603,6 +603,9 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           // Kept below the preview so nothing covers the watermark being previewed.
           <div className="cam-ts-bar">
             <CombinationChips presetId={stamp.presetId} choosePreset={stamp.choosePreset} />
+            <button className={`cam-info-toggle ${stamp.prefs.showInfo ? 'on' : ''}`} onClick={() => stamp.update({ showInfo: !stamp.prefs.showInfo })} aria-pressed={stamp.prefs.showInfo} aria-label={t('ts.showInfo')}>
+              <Icon name="clock" size={16} /> {stamp.prefs.showInfo ? t('ts.infoOn') : t('ts.infoOff')}
+            </button>
             <button className="cam-stamp-edit" onClick={() => setStampEdit('templates')}>
               <Icon name="edit" size={16} /> {t('ts.edit')}
             </button>

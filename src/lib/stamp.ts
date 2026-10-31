@@ -24,6 +24,8 @@ export interface StampOptions {
   note: string
   /** The user's watermarks (logo and/or text), each with its own position and size. */
   marks: StampMark[]
+  /** Draw the time / date / location / note group at all (off = watermarks only). */
+  showInfo?: boolean
   pos: StampPos // where the time / date / location / note group goes
   size: number // 0.6 – 1.6, size of that group
   locale: string // BCP 47, for the weekday name
@@ -356,7 +358,7 @@ export function drawStamp(c: HTMLCanvasElement, o: StampOptions): void {
     g.blocks.push(b)
     groups.set(pos, g)
   }
-  add(o.pos, fitted((k) => buildBlock(ctx, { ...o, size: k }, base * k), o.size), 1.2 * base * o.size)
+  if (o.showInfo !== false) add(o.pos, fitted((k) => buildBlock(ctx, { ...o, size: k }, base * k), o.size), 1.2 * base * o.size)
   for (const m of o.marks) add(m.pos, fitted((k) => markBlock(ctx, m, base * k, markColor), m.size), 1.2 * base * m.size)
   for (const [pos, g] of groups) {
     const w = Math.max(...g.blocks.map((b) => b.w))

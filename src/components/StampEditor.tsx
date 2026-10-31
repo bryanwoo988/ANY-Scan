@@ -26,6 +26,7 @@ export interface StampPrefs {
   pos: StampPos // position of the time/info group
   size: number // size of the time/info group
   watermarkIds: string[] // watermarks from the library shown with these settings, in order
+  showInfo: boolean // off = only the watermarks go on the photo
 }
 
 export interface Watermark {
@@ -57,6 +58,7 @@ export const STAMP_DEFAULTS: StampPrefs = {
   pos: 'bl',
   size: 1,
   watermarkIds: [],
+  showInfo: true,
 }
 
 // ---------------------------------------------------------------- stores
@@ -510,6 +512,13 @@ export function StampContentForm({ prefs, update, place, setPlace, when, setWhen
   return (
     <div className="stack">
       <h3 className="form-group-title">{t('ts.timeAndInfo')}</h3>
+      <label className="switch-row">
+        <span>{t('ts.showInfo')}</span>
+        <input type="checkbox" className="switch" checked={prefs.showInfo} onChange={(e) => update({ showInfo: e.target.checked })} />
+      </label>
+      {!prefs.showInfo && <p className="muted small">{t('ts.showInfoOff')}</p>}
+      {prefs.showInfo && (
+        <>
       {when && setWhen && (
         <label className="field">
           <span>{t('dateTime')}</span>
@@ -556,6 +565,8 @@ export function StampContentForm({ prefs, update, place, setPlace, when, setWhen
         <span>{t('textSize')}</span>
         <input type="range" min={0.6} max={1.6} step={0.05} value={prefs.size} onChange={(e) => update({ size: +e.target.value })} />
       </label>
+        </>
+      )}
       <h3 className="form-group-title">{t('ts.watermarks')}</h3>
       <WatermarkList prefs={prefs} update={update} />
     </div>
