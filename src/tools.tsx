@@ -10,7 +10,7 @@ export type ToolId =
   | 'smartScan' | 'idCard' | 'ocr' | 'idPhoto' | 'timestamp' | 'stitch' | 'slides' | 'whiteboard' | 'mega'
   | 'importImages' | 'importFiles'
   | 'toWord' | 'pdfToWord' | 'pdfToPpt' | 'toExcel' | 'pdfToImages' | 'longImage'
-  | 'sign' | 'watermark' | 'merge' | 'extract' | 'reorder' | 'lock' | 'compress'
+  | 'sign' | 'watermark' | 'unmark' | 'merge' | 'extract' | 'reorder' | 'lock' | 'compress'
   | 'qr' | 'qrScan' | 'qrCreate' | 'print'
 
 export interface Tool {
@@ -44,6 +44,7 @@ export const TOOLS: Record<ToolId, Tool> = {
   longImage: { id: 'longImage', icon: 'long', color: C.teal, label: 'tool.longImage' },
   sign: { id: 'sign', icon: 'sign', color: C.green, label: 'tool.sign' },
   watermark: { id: 'watermark', icon: 'watermark', color: C.blue, label: 'tool.watermark' },
+  unmark: { id: 'unmark', icon: 'eraser', color: C.pink, label: 'tool.unmark', isNew: true },
   merge: { id: 'merge', icon: 'merge', color: C.teal, label: 'tool.merge' },
   extract: { id: 'extract', icon: 'extract', color: C.blue, label: 'tool.extract' },
   reorder: { id: 'reorder', icon: 'reorder', color: C.purple, label: 'tool.reorder' },
@@ -60,7 +61,7 @@ export const SECTIONS: { title: TKey; tools: ToolId[] }[] = [
   { title: 'section.qr', tools: ['qrScan', 'qrCreate', 'qr'] },
   { title: 'section.import', tools: ['importImages', 'importFiles'] },
   { title: 'section.convert', tools: ['pdfToWord', 'pdfToPpt', 'toExcel', 'toWord', 'pdfToImages', 'longImage'] },
-  { title: 'section.edit', tools: ['sign', 'watermark', 'merge', 'extract', 'reorder', 'lock', 'compress'] },
+  { title: 'section.edit', tools: ['sign', 'watermark', 'unmark', 'merge', 'extract', 'reorder', 'lock', 'compress'] },
   { title: 'section.utilities', tools: ['print'] },
 ]
 
@@ -188,6 +189,8 @@ export function useTools() {
         return push('pick', { title: 'tool.sign', next: 'sign' })
       case 'watermark':
         return push('pick', { title: 'tool.watermark', next: 'watermark' })
+      case 'unmark':
+        return push('pick', { title: 'tool.unmark', next: 'unmark', images: true })
       case 'merge':
         return push('pick', { title: 'tool.merge', next: 'merge', multi: true })
       case 'extract':

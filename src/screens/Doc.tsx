@@ -3,7 +3,7 @@ import { Icon } from '../components/Icon'
 import { ZoomView } from '../components/ZoomView'
 import { DocRow, Empty, PageImg, Screen, Segmented, Sheet, TextDialog } from '../components/ui'
 import {
-  createDoc, docFromPages, moveDocsToAlbum, restore, trashDocs, listDocs, getDoc, getPage, getPages, onDbChange, renameDoc, replacePage, setPageOrder,
+  createDoc, defaultDocName, docFromPages, moveDocsToAlbum, restore, trashDocs, listDocs, getDoc, getPage, getPages, onDbChange, renameDoc, replacePage, setPageOrder,
   type DocRec, type PageRec,
 } from '../lib/db'
 import { buildJpgs, buildLongImage, buildPdf, importPdf, PdfPasswordError, safeFileName, type PageSize, type Quality } from '../lib/export'
@@ -128,6 +128,9 @@ export function DocScreen({ id }: { id: string }) {
           </button>
           <button className="option" onClick={act(() => push('watermark', { docId: id }))}>
             <Icon name="watermark" /> {t('tool.watermark')}
+          </button>
+          <button className="option" onClick={act(() => push('unmark', { docId: id }))}>
+            <Icon name="eraser" /> {t('tool.unmark')}
           </button>
           <button className="option" onClick={act(() => push('export', { docId: id, preset: 'lock' }))}>
             <Icon name="lock" /> {t('tool.lock')}
@@ -373,7 +376,7 @@ export function ExportScreen({ docId, preset }: { docId: string; preset?: Preset
 }
 
 /** `passFile`: a PDF chosen from the phone goes to `next` as `file` instead of being imported first. */
-export function PickScreen({ title, next, nextParams, multi, passFile }: { title: TKey; next: string; nextParams?: object; multi?: boolean; passFile?: boolean }) {
+export function PickScreen({ title, next, nextParams, multi, passFile, images }: { title: TKey; next: string; nextParams?: object; multi?: boolean; passFile?: boolean; images?: boolean }) {
   const { t, replace, setBusy, toast } = useApp()
   const docs = useDocs()
   const { pickFiles } = useApp()
@@ -419,6 +422,29 @@ export function PickScreen({ title, next, nextParams, multi, passFile }: { title
         >
           <Icon name="folder" /> {t('importPdfFromFiles')}
         </button>
+        {images && (
+          // Pictures are used as they are (no cropping), so a screenshot or saved image keeps its edges.
+          <button
+            className="btn soft block"
+            onClick={() =>
+              pickFiles({ accept: 'image/*', multiple: true }).then(async (f) => {
+                if (!f.length) return
+                setBusy({ text: t('importing') })
+                try {
+                  const d = await docFromImages(f, f.length === 1 ? f[0].name.replace(/\.[^.]+$/, '') : defaultDocName())
+                  go([d.id])
+                } catch (e) {
+                  console.error(e)
+                  toast(t('imageFailed'))
+                } finally {
+                  setBusy(null)
+                }
+              })
+            }
+          >
+            <Icon name="image" /> {t('chooseImages')}
+          </button>
+        )}
       </div>
       {docs?.length === 0 && <Empty icon="docs" text={t('noDocsYet')} />}
       <div className="list">
@@ -644,3 +670,20 @@ export function PrintScreen({ docId }: { docId: string }) {
     </Screen>
   )
 }
+
+/** Creates a document from picked images as they are (no cropping), for tools that edit pages. */
+export async function docFromImages(files: File[], name: string) {
+  const pages = []
+  for (const f of files) {
+    const c = await blobToCanvas(f, 4000)
+    // Transparent areas (PNG screenshots) become white, not black, in the JPEG page.
+    const x = c.getContext('2d')!
+    x.globalCompositeOperation = 'destination-over'
+    x.fillStyle = '#fff'
+    x.fillRect(0, 0, c.width, c.height)
+    pages.push({ blob: await canvasToBlob(c, 'image/jpeg', 0.92), w: c.width, h: c.height })
+    c.width = c.height = 1
+  }
+  return createDoc(name, pages)
+}
+

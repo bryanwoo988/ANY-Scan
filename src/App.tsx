@@ -13,6 +13,7 @@ import { ConvertScreen } from './screens/Convert'
 import { ExcelScreen } from './screens/Excel'
 import { StitchScreen } from './screens/Stitch'
 import { MegaScreen } from './screens/Mega'
+import { UnmarkScreen } from './screens/Unmark'
 import type { ComponentType } from 'react'
 import { LanguagePicker } from './components/LanguagePicker'
 import { HistoryScreen, UpdateBanner, useShowWhatsNewOnUpgrade, WhatsNewSheet } from './components/SettingsParts'
@@ -43,6 +44,7 @@ const ROUTES: Record<string, ComponentType<any>> = {
   excel: ExcelScreen,
   stitch: StitchScreen,
   mega: MegaScreen,
+  unmark: UnmarkScreen,
   camera: CameraScreen,
 }
 

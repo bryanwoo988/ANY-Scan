@@ -46,6 +46,7 @@ const P: Record<string, string> = {
   word: 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 11l1.5 6 2.5-5 2.5 5 1.5-6',
   long: 'M7 2h10v20H7zM7 8h10M7 15h10',
   images: 'M7 3h13a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM3 7v13a1 1 0 0 0 1 1h13M6 14l4-4 3 3 2-2 5 5',
+  eraser: 'M16 3l5 5-11 11H5l-3-3zM9 9l6 6M10 21h11',
   compare: 'M4 4h16v16H4zM12 2v20M15 8l3 4-3 4',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',

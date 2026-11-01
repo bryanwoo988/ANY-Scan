@@ -10,7 +10,28 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.15.0',
+    notes: {
+      en: [
+        'New in Edit: Remove Watermark — Auto removes light grey or pale watermarks behind the text (like “CONFIDENTIAL” or “COPY”) and evens out the paper; raise the strength for darker ones, and turn on “Also remove coloured marks” for coloured stamps',
+        'For other marks, choose Brush and paint over them with your finger: the area is filled in from around it. Undo removes the last stroke, and “Hold for original” compares with the page before',
+        'Works on a saved document, a PDF, or pictures from your album, and saves a new copy, so the original is kept. Also in a document’s ⋯ menu',
+      ],
+      zh: [
+        '编辑新增「去水印」：「自动」会去掉文字后面浅灰或淡色的水印（例如「CONFIDENTIAL」「COPY」），顺便把纸张变均匀白；水印较深就调高强度，彩色印章就打开「彩色印记也去掉」',
+        '其他水印选「涂抹」，用手指涂满，会用周围的颜色补上。「撤销」可以退回上一笔，「按住看原图」可以对比',
+        '可以用在已存的文件、PDF 或相册里的图片，存成新的一份，原文件保留。文件的「⋯」菜单里也有',
+      ],
+      ms: [
+        'Baharu dalam Sunting: Buang Tera Air — Auto membuang tera air kelabu cerah atau pudar di belakang teks (seperti “CONFIDENTIAL” atau “COPY”) dan meratakan warna kertas; naikkan kekuatan untuk yang lebih gelap, dan hidupkan “Buang juga tanda berwarna” untuk cop berwarna',
+        'Untuk tanda lain, pilih Berus dan sapu dengan jari: kawasan itu diisi daripada sekelilingnya. Buat asal membuang sapuan terakhir, dan “Tekan untuk asal” membandingkan dengan halaman asal',
+        'Berfungsi pada dokumen yang disimpan, PDF atau gambar daripada album, dan disimpan sebagai salinan baharu supaya yang asal dikekalkan. Juga dalam menu ⋯ dokumen',
+      ],
+    },
+  },
+  {
     version: '1.14.1',
+    released: '2026-10-31T23:51:12Z',
     notes: {
       en: [
         'Scan preview: pinch or double-tap to zoom in and check small text, drag to move around, and swipe left or right to go between pages. Press and hold “Hold for original” to compare with the photo before the filter. The filter in use is shown on the preview',
