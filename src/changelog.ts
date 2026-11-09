@@ -10,7 +10,28 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.15.1',
+    notes: {
+      en: [
+        'Fixed: on some Android phones the camera looked zoomed in. On phones with several back lenses, the browser sometimes opened the telephoto or wide-angle lens; AnyScan now opens the main lens',
+        'If the picture still looks zoomed in or bent, tap the new lens button (1/3, 2/3…) at the top of the camera to try the next lens. Your choice is remembered',
+        'If a phone sends a sideways camera picture, the whole picture is now shown instead of a cut-out of the middle',
+      ],
+      zh: [
+        '修正：部分 Android 手机打开相机画面太放大。有几个后镜头的手机，浏览器有时会打开长焦或广角镜头；现在会改用主镜头',
+        '如果画面还是太大或变形，点相机上方新的镜头按钮（1/3、2/3…）换下一个镜头，会记住你的选择',
+        '如果手机传来的是横向画面，现在会显示整个画面，不再只显示中间一块',
+      ],
+      ms: [
+        'Dibaiki: pada sesetengah telefon Android, kamera kelihatan terlalu dizum. Pada telefon dengan beberapa lensa belakang, pelayar kadangkala membuka lensa telefoto atau sudut lebar; AnyScan kini membuka lensa utama',
+        'Jika gambar masih kelihatan dizum atau herot, ketik butang lensa baharu (1/3, 2/3…) di atas kamera untuk mencuba lensa seterusnya. Pilihan anda diingati',
+        'Jika telefon menghantar gambar kamera secara mendatar, seluruh gambar kini ditunjukkan dan bukan bahagian tengah sahaja',
+      ],
+    },
+  },
+  {
     version: '1.15.0',
+    released: '2026-11-01T12:31:00Z',
     notes: {
       en: [
         'New in Edit: Remove Watermark — Auto removes light grey or pale watermarks behind the text (like “CONFIDENTIAL” or “COPY”) and evens out the paper; raise the strength for darker ones, and turn on “Also remove coloured marks” for coloured stamps',

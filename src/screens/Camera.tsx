@@ -43,6 +43,41 @@ const ALWAYS_BATCH: CamMode[] = ['slides', 'mega']
 
 type Facing = 'environment' | 'user'
 
+const LENS_KEY = 'anyscan.cameraLens'
+/** The back lens in use, kept while the app is open so the camera opens straight on it next time. */
+let sessionLens: string | null = null
+
+/** Back cameras, as listed once camera permission has been given (labels are empty before that). */
+async function backCameras(): Promise<MediaDeviceInfo[]> {
+  const all = (await navigator.mediaDevices.enumerateDevices?.()) ?? []
+  const backs = all.filter((d) => d.kind === 'videoinput' && /back|rear|environment|后|後|belakang/i.test(d.label))
+  // Android numbers its cameras; the lowest-numbered back camera (the main one) comes first.
+  const n = (d: MediaDeviceInfo) => camNumber(d.label) ?? 1e9
+  return backs.sort((a, b) => n(a) - n(b))
+}
+
+/** Android's camera number from a label such as "camera2 0, facing back". */
+const camNumber = (label: string) => {
+  const m = /camera2?\s*(\d+)/i.exec(label)
+  return m ? +m[1] : null
+}
+
+/**
+ * The back camera to use. A lens the user chose is remembered by its label. Otherwise, on
+ * Android, the lowest-numbered back camera ("camera2 0") is the main one: phones with several
+ * back lenses sometimes get the telephoto or ultra-wide from facingMode alone, which looks zoomed
+ * in or distorted.
+ */
+function preferredLens(backs: MediaDeviceInfo[], current: string | undefined): MediaDeviceInfo | undefined {
+  if (backs.length < 2) return undefined
+  const saved = loadJSON<string | null>(LENS_KEY, null)
+  const chosen = saved ? backs.find((d) => d.label === saved) : undefined
+  if (chosen) return chosen
+  const numbered = backs.filter((d) => camNumber(d.label) != null).sort((a, b) => camNumber(a.label)! - camNumber(b.label)!)
+  const main = numbered[0]
+  return main && main.deviceId !== current ? main : undefined
+}
+
 function useCamera(facing: Facing) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [state, setState] = useState<'starting' | 'live' | 'error'>('starting')
@@ -50,6 +85,15 @@ function useCamera(facing: Facing) {
   // Hardware zoom range when the browser exposes it (Chrome on Android); otherwise zoom is digital.
   const [hwZoom, setHwZoom] = useState<{ min: number; max: number } | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  // Back lens chosen by deviceId (null: let the browser pick from facingMode).
+  const [lens, setLensState] = useState<string | null>(sessionLens)
+  const setLens = (id: string | null) => {
+    sessionLens = id
+    setLensState(id)
+  }
+  const [backs, setBacks] = useState<MediaDeviceInfo[]>([])
+  const [lensId, setLensId] = useState<string>()
+  const checked = useRef(false)
 
   useEffect(() => {
     let alive = true
@@ -63,10 +107,17 @@ function useCamera(facing: Facing) {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera API')
         // Ask for the largest 4:3 frame the camera offers; the browser picks the closest it supports.
-        const s = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: facing }, width: { ideal: 4032 }, height: { ideal: 3024 }, aspectRatio: { ideal: 4 / 3 } },
-        })
+        const size = { width: { ideal: 4032 }, height: { ideal: 3024 }, aspectRatio: { ideal: 4 / 3 } }
+        const useLens = facing === 'environment' && lens
+        let s: MediaStream
+        try {
+          s = await navigator.mediaDevices.getUserMedia({ audio: false, video: useLens ? { deviceId: { exact: lens }, ...size } : { facingMode: { ideal: facing }, ...size } })
+        } catch (e) {
+          if (!useLens) throw e
+          // That lens can't be opened (unplugged, or the ids changed): back to the browser's choice.
+          setLens(null)
+          return
+        }
         if (!alive) return s.getTracks().forEach((t) => t.stop())
         streamRef.current = s
         const v = videoRef.current!
@@ -76,6 +127,19 @@ function useCamera(facing: Facing) {
         setTorch({ supported: !!caps.torch, on: false })
         setHwZoom(caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max } : null)
         setState('live')
+        if (facing === 'environment') {
+          const current = s.getVideoTracks()[0]?.getSettings?.().deviceId
+          setLensId(current)
+          const list = await backCameras().catch(() => [])
+          if (!alive) return
+          setBacks(list)
+          // Once per session: move to the main lens if the browser opened another one.
+          if (!checked.current && !lens && !sessionLens) {
+            checked.current = true
+            const want = preferredLens(list, current)
+            if (want && want.deviceId !== current) setLens(want.deviceId)
+          }
+        }
       } catch (e) {
         console.warn('AnyScan camera:', e)
         if (alive) setState('error')
@@ -90,7 +154,17 @@ function useCamera(facing: Facing) {
       document.removeEventListener('visibilitychange', onVis)
       stop()
     }
-  }, [facing])
+  }, [facing, lens])
+
+  /** Next back lens; the choice is remembered for next time. */
+  const nextLens = useCallback(() => {
+    if (backs.length < 2) return
+    const i = backs.findIndex((d) => d.deviceId === lensId)
+    const n = backs[(i + 1) % backs.length]
+    saveJSON(LENS_KEY, n.label)
+    setLens(n.deviceId)
+  }, [backs, lensId])
+  const lensIndex = Math.max(0, backs.findIndex((d) => d.deviceId === lensId))
 
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0]
@@ -109,7 +183,7 @@ function useCamera(facing: Facing) {
     track?.applyConstraints({ advanced: [{ zoom: z } as MediaTrackConstraintSet] }).catch(() => {})
   }, [])
 
-  return { videoRef, state, torch, toggleTorch, hwZoom, applyHwZoom }
+  return { videoRef, state, torch, toggleTorch, hwZoom, applyHwZoom, lenses: facing === 'environment' ? backs.length : 0, lensIndex, nextLens }
 }
 
 type Rect = { x: number; y: number; w: number; h: number }
@@ -121,11 +195,29 @@ function zoomRegion(v: HTMLVideoElement, dz: number): Rect {
   return { x: (v.videoWidth - w) / 2, y: (v.videoHeight - h) / 2, w, h }
 }
 
-/** The part of the frame that is visible in a `cover`-fitted, `dz`-zoomed preview of size w×h. */
+/**
+ * Whether the preview shows the whole frame (with bars) rather than filling the screen. Filling
+ * crops the frame; when that would hide more than 30% of it (a landscape frame on a portrait
+ * screen, which some Android phones send), the picture looks zoomed in, so the whole frame is
+ * shown instead.
+ */
+export function fitWhole(w: number, h: number, vw: number, vh: number): boolean {
+  if (!w || !h || !vw || !vh) return false
+  const a = w / h
+  const b = vw / vh
+  return Math.min(a, b) / Math.max(a, b) < 0.7
+}
+
+/** Screen pixels per video pixel in the preview (before digital zoom). */
+function previewScale(w: number, h: number, vw: number, vh: number): number {
+  return fitWhole(w, h, vw, vh) ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh)
+}
+
+/** The part of the frame that is visible in the `dz`-zoomed preview of size w×h. */
 function visibleCrop(v: HTMLVideoElement, w: number, h: number, dz: number): Rect {
-  const k = Math.max(w / v.videoWidth, h / v.videoHeight) * dz
-  const cw = w / k
-  const ch = h / k
+  const k = previewScale(w, h, v.videoWidth, v.videoHeight) * dz
+  const cw = Math.min(v.videoWidth, w / k)
+  const ch = Math.min(v.videoHeight, h / k)
   return { x: (v.videoWidth - cw) / 2, y: (v.videoHeight - ch) / 2, w: cw, h: ch }
 }
 
@@ -160,7 +252,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
   const [flash, setFlash] = useState(0)
   const [menu, setMenu] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { videoRef, state, torch, toggleTorch, hwZoom, applyHwZoom } = useCamera(facing)
+  const { videoRef, state, torch, toggleTorch, hwZoom, applyHwZoom, lenses, lensIndex, nextLens } = useCamera(facing)
   // Zoom: hardware when available, otherwise digital (preview scaled, frames cropped to match).
   const [zoom, setZoomState] = useState(1)
   const maxZoom = hwZoom ? Math.min(hwZoom.max, 10) : 5
@@ -182,6 +274,23 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
     })
   const [countdown, setCountdown] = useState<number | null>(null)
   const stageRef = useRef<HTMLDivElement>(null)
+  // Show the whole frame when filling the screen would crop most of it (see fitWhole).
+  const [whole, setWhole] = useState(false)
+  useEffect(() => {
+    const v = videoRef.current
+    const st = stageRef.current
+    if (!v || !st) return
+    const check = () => setWhole(fitWhole(st.clientWidth, st.clientHeight, v.videoWidth, v.videoHeight))
+    const ro = new ResizeObserver(check)
+    ro.observe(st)
+    v.addEventListener('loadedmetadata', check)
+    v.addEventListener('resize', check)
+    return () => {
+      ro.disconnect()
+      v.removeEventListener('loadedmetadata', check)
+      v.removeEventListener('resize', check)
+    }
+  }, [videoRef])
   const stripRef = useRef<HTMLDivElement>(null)
 
   // Thumbnail of the latest batch shot.
@@ -297,10 +406,10 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
       }
       shown = shown ? approach(shown, target, 0.25) : target
       // Coordinates are normalised to the zoomed region, which the preview shows centred and
-      // cover-fitted; the zoom cancels out of the mapping.
+      // fitted (see previewScale); the zoom cancels out of the mapping.
       const W = stage.clientWidth
       const H = stage.clientHeight
-      const k = Math.max(W / v.videoWidth, H / v.videoHeight)
+      const k = previewScale(W, H, v.videoWidth, v.videoHeight)
       poly.setAttribute('points', shown.map((p) => `${(W / 2 + (p.x - 0.5) * v.videoWidth * k).toFixed(1)},${(H / 2 + (p.y - 0.5) * v.videoHeight * k).toFixed(1)}`).join(' '))
     }
     raf = requestAnimationFrame(frame)
@@ -528,6 +637,15 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           <button className={`cam-icon ${prefs.grid ? 'on' : ''}`} onClick={() => setPref({ grid: !prefs.grid })} aria-label={t('cam.grid')}>
             <Icon name="grid3" size={24} />
           </button>
+          {lenses > 1 && (
+            // Phones with several back lenses: if the picture looks zoomed in or bent, try the next one.
+            <button className="cam-icon" onClick={nextLens} aria-label={t('cam.lens')}>
+              <Icon name="camera" size={24} />
+              <span className="cam-icon-badge">
+                {lensIndex + 1}/{lenses}
+              </span>
+            </button>
+          )}
           <button className="cam-icon" onClick={() => setFacing((f) => (f === 'environment' ? 'user' : 'environment'))} aria-label={t('flipCamera')}>
             <Icon name="flip" size={24} />
           </button>
@@ -573,7 +691,7 @@ export function CameraScreen({ mode: initialMode = 'scan' }: { mode?: CamMode })
           }
         }}
       >
-        <video ref={videoRef} playsInline muted autoPlay style={{ transform: `${facing === 'user' ? 'scaleX(-1) ' : ''}scale(${dz})` }} />
+        <video ref={videoRef} playsInline muted autoPlay className={whole ? 'whole' : undefined} style={{ transform: `${facing === 'user' ? 'scaleX(-1) ' : ''}scale(${dz})` }} />
         {prefs.grid && (
           <svg className="cam-grid" width="100%" height="100%" aria-hidden="true">
             <line x1="33.33%" y1="0" x2="33.33%" y2="100%" />
